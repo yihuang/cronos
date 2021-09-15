@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./CosmosToken.sol";
 
 pragma experimental ABIEncoderV2;
@@ -29,6 +30,9 @@ struct LogicCallArgs {
 contract Gravity is ReentrancyGuard {
 	using SafeMath for uint256;
 	using SafeERC20 for IERC20;
+
+    // ERC721 standard
+    bytes4 private constant _INTERFACE_ID_ERC721 = 0x80ac58cd;
 
 	// These are updated often
 	bytes32 public state_lastValsetCheckpoint;
@@ -526,7 +530,8 @@ contract Gravity is ReentrancyGuard {
 		bytes32 _destination,
 		uint256 _amount
 	) public nonReentrant {
-		IERC20(_tokenContract).safeTransferFrom(msg.sender, address(this), _amount);
+        require(!IERC721(_tokenContract).supportsInterface(_INTERFACE_ID_ERC721), "don't support erc721 tokens");
+        IERC20(_tokenContract).safeTransferFrom(msg.sender, address(this), _amount);
 		state_lastEventNonce = state_lastEventNonce.add(1);
 		emit SendToCosmosEvent(
 			_tokenContract,

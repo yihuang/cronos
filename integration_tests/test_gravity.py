@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+import web3
 from eth_account.account import Account
 from hexbytes import HexBytes
 from pystarport import ports
@@ -191,3 +192,58 @@ def test_gravity_transfer(gravity, suspend_capture):
         return v == balance
 
     wait_for_fn("send-to-ethereum", check)
+
+
+def test_transfer_erc721(gravity):
+    """
+    Test the disastrous result when user mistakenly transfer erc721 token through gravity bridge
+    """
+    geth = gravity.geth
+
+    # deploy test erc721 contract
+    erc721 = deploy_contract(
+        geth,
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/TestERC721.sol/ERC721Token.json",
+    )
+
+    # mint some nfts to two accounts
+    for i in range(5):
+        txreceipt = send_transaction(
+            geth,
+            erc721.functions.mint().buildTransaction({"from": ADDRS["community"]}),
+            KEYS["community"],
+        )
+        assert txreceipt.status == 1, "mint should be successful"
+
+    for i in range(5):
+        txreceipt = send_transaction(
+            geth,
+            erc721.functions.mint().buildTransaction({"from": ADDRS["validator"]}),
+            KEYS["validator"],
+        )
+        assert txreceipt.status == 1, "mint should be successful"
+
+    # validator send token_id 8, community send token_id 3,
+    # validator can get back token_id 3.
+
+    # account validator approve and send
+    txreceipt = send_transaction(
+        geth,
+        erc721.functions.approve(gravity.contract.address, 8).buildTransaction(
+            {"from": ADDRS["validator"]}
+        ),
+        KEYS["validator"],
+    )
+    assert txreceipt.status == 1, "approve should be successful"
+
+    recipient = HexBytes(ADDRS["validator"])
+    # erc721 tokens are not supported in sendToCosmos
+    with pytest.raises(web3.exceptions.ContractLogicError):
+        send_transaction(
+            geth,
+            gravity.contract.functions.sendToCosmos(
+                erc721.address, b"\x00" * 12 + recipient, 8
+            ).buildTransaction({"from": ADDRS["validator"]}),
+            KEYS["validator"],
+        )
