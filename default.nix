@@ -16,6 +16,8 @@ pkgs.buildGoApplication rec {
   pwd = src; # needed to support replace
   subPackages = [ "cmd/cronosd" ];
   CGO_ENABLED = "1";
+  buildInputs = [ pkgs.rocksdb ];
+  buildFlags = "-tags mainnet,rocksdb";
   buildFlagsArray = ''
     -ldflags=
     -X github.com/cosmos/cosmos-sdk/version.Name=cronos
