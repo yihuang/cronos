@@ -29,6 +29,32 @@ KEYS = {
 }
 ADDRS = {name: Account.from_key(key).address for name, key in KEYS.items()}
 CRONOS_ADDRESS_PREFIX = "crc"
+TEST_CONTRACTS = {
+    "Gravity": "Gravity.sol",
+    "Greeter": "Greeter.sol",
+    "TestERC20A": "TestERC20A.sol",
+    "TestRevert": "TestRevert.sol",
+    "TestERC20Utility": "TestERC20Utility.sol",
+    "TestMessageCall": "TestMessageCall.sol",
+}
+
+
+def contract_path(name, filename):
+    return (
+        Path(__file__).parent
+        / "contracts/artifacts/contracts"
+        / filename
+        / (name + ".json")
+    )
+
+
+CONTRACTS = {
+    "ModuleCRC20": Path(__file__).parent.parent
+    / "x/cronos/types/contracts/ModuleCRC20.json",
+    **{
+        name: contract_path(name, filename) for name, filename in TEST_CONTRACTS.items()
+    },
+}
 
 
 def wait_for_fn(name, fn, *, timeout=120, interval=1):
