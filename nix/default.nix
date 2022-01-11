@@ -63,9 +63,15 @@ import sources.nixpkgs {
       };
     })
     (_: pkgs: { test-env = import ./testenv.nix { inherit pkgs; }; })
-    (_: pkgs: {
-      rocksdb = pkgs.rocksdb.overrideAttrs (old: rec {
-        pname = "rocksdb";
+    # build static libraries of rocksdb dependencies
+    (_: pkgs: rec {
+      snappy-static = pkgs.callPackage "${sources.nixpkgs}/pkgs/development/libraries/snappy" { static = true; };
+      zstd-static = pkgs.callPackage "${sources.nixpkgs}/pkgs/tools/compression/zstd" { static = true; };
+      lz4-static = pkgs.callPackage "${sources.nixpkgs}/pkgs/tools/compression/lz4" { enableStatic = true; enableShared = false; };
+      bzip2-static = pkgs.callPackage "${sources.nixpkgs}/pkgs/tools/compression/bzip2" { linkStatic = true; };
+      rocksdb-static = (
+        pkgs.callPackage "${sources.nixpkgs}/pkgs/development/libraries/rocksdb" { enableShared = false; }
+      ).overrideAttrs (_: {
         version = "6.27.3";
         src = sources.rocksdb;
       });
