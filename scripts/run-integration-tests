@@ -10,4 +10,4 @@ cd ../integration_tests/contracts
 yarn
 npx hardhat typechain
 cd ..
-nix-shell --run "pytest -vv -s"
+pytest -vv -s

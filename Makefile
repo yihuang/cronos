@@ -243,7 +243,7 @@ test-sim-profile:
 ###############################################################################
 
 run-integration-tests:
-	@nix-shell ./integration_tests/shell.nix --run ./scripts/run-integration-tests
+	@nix develop ".#integration-tests" -c ./scripts/run-integration-tests
 
 .PHONY: run-integration-tests
 

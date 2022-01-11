@@ -1,30 +1,31 @@
-{ pkgs
+{ writeShellScriptBin
+, symlinkJoin
+, pystarport
+, chainmain
+, go-ethereum
+, hermes
 , config
-, cronos ? (import ../. { inherit pkgs; })
-, chainmain ? (import ../nix/chainmain.nix { inherit pkgs; })
-, hermes ? (import ../nix/hermes.nix { inherit pkgs; })
-
 }: rec {
-  start-chainmain = pkgs.writeShellScriptBin "start-chainmain" ''
-    export PATH=${pkgs.pystarport}/bin:${chainmain}/bin:$PATH
+  start-chainmain = writeShellScriptBin "start-chainmain" ''
+    export PATH=${pystarport}/bin:${chainmain}/bin:$PATH
     ${../scripts/start-chainmain} ${config.chainmain-config} ${config.dotenv} $@
   '';
-  start-cronos = pkgs.writeShellScriptBin "start-cronos" ''
+  start-cronos = writeShellScriptBin "start-cronos" ''
     # rely on environment to provide cronosd
-    export PATH=${pkgs.pystarport}/bin:$PATH
+    export PATH=${pystarport}/bin:$PATH
     ${../scripts/start-cronos} ${config.cronos-config} ${config.dotenv} $@
   '';
-  start-geth = pkgs.writeShellScriptBin "start-geth" ''
-    export PATH=${pkgs.go-ethereum}/bin:$PATH
+  start-geth = writeShellScriptBin "start-geth" ''
+    export PATH=${go-ethereum}/bin:$PATH
     source ${config.dotenv}
     ${../scripts/start-geth} ${config.geth-genesis} $@
   '';
-  start-hermes = pkgs.writeShellScriptBin "start-hermes" ''
+  start-hermes = writeShellScriptBin "start-hermes" ''
     export PATH=${hermes}/bin:$PATH
     source ${config.dotenv}
     ${../scripts/start-hermes} ${config.hermes-config} $@
   '';
-  start-scripts = pkgs.symlinkJoin {
+  start-scripts = symlinkJoin {
     name = "start-scripts";
     paths = [ start-cronos start-geth start-chainmain start-hermes ];
   };

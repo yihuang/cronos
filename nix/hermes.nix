@@ -1,4 +1,4 @@
-{ pkgs ? import ./default.nix { } }:
+{ stdenv, fetchurl, lib }:
 let
   version = "v0.8.0";
   srcUrl = {
@@ -12,13 +12,13 @@ let
         "https://github.com/informalsystems/ibc-rs/releases/download/${version}/hermes-${version}-x86_64-apple-darwin.tar.gz";
       sha256 = "sha256-dBAdPle81IBoOw5epr0NcPyIdYR/HNux1UKVYpAas2A=";
     };
-  }.${pkgs.stdenv.system} or (throw
-    "Unsupported system: ${pkgs.stdenv.system}");
+  }.${stdenv.system} or (throw
+    "Unsupported system: ${stdenv.system}");
 in
-pkgs.stdenv.mkDerivation {
+stdenv.mkDerivation {
   name = "hermes";
   inherit version;
-  src = pkgs.fetchurl srcUrl;
+  src = fetchurl srcUrl;
   sourceRoot = ".";
   installPhase = ''
     echo "hermes"
@@ -26,6 +26,5 @@ pkgs.stdenv.mkDerivation {
     install -m755 -D hermes $out/bin/hermes
   '';
 
-  meta = with pkgs.lib; { platforms = with platforms; linux ++ darwin; };
-
+  meta = with lib; { platforms = with platforms; linux ++ darwin; };
 }
