@@ -1014,7 +1014,7 @@ class CosmosCLI:
             )
         )
 
-    def build_evm_tx(self, raw_tx: str, **kwargs):
+    def evm_tx(self, raw_tx: str, generate_only=False, **kwargs):
         return json.loads(
             self.raw(
                 "tx",
@@ -1022,7 +1022,7 @@ class CosmosCLI:
                 "raw",
                 raw_tx,
                 "-y",
-                "--generate-only",
+                "--generate-only" if generate_only else None,
                 home=self.data_dir,
                 **kwargs,
             )

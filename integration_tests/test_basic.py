@@ -485,7 +485,7 @@ def test_batch_tx(cronos):
         sign_transaction(w3, transfer_tx2, KEYS["validator"]),
     ]
     tmp_txs = [
-        cronos.cosmos_cli().build_evm_tx(signed.rawTransaction.hex())
+        cronos.cosmos_cli().evm_tx(signed.rawTransaction.hex(), generate_only=True)
         for signed in signed_txs
     ]
 
