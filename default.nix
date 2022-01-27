@@ -1,5 +1,9 @@
-{ system ? builtins.currentSystem, pkgs ? import ./nix { inherit system; }, db_backend ? "rocksdb" }:
-with pkgs;
+{ lib
+, buildGoApplication
+, nix-gitignore
+, rocksdb ? null
+, db_backend ? "rocksdb"
+}:
 let
   version = "dev";
   pname = "cronosd";
@@ -16,19 +20,11 @@ let
     "-X github.com/cosmos/cosmos-sdk/types.DBBackend=rocksdb"
   ]);
   buildInputs = lib.lists.optionals (db_backend == "rocksdb") [
-    rocksdb-static
+    rocksdb
   ];
-  CGO_LDFLAGS = lib.optionalString (db_backend == "rocksdb") ''
-    ${rocksdb-static}/lib/librocksdb.a
-    ${bzip2-static.out}/lib/libbz2.a
-    ${lz4-static.out}/lib/liblz4.a
-    ${zstd-static.out}/lib/libzstd.a
-    ${zlib.static}/lib/libz.a
-    ${snappy-static.out}/lib/libsnappy.a
-  '';
 in
 buildGoApplication rec {
-  inherit pname version buildInputs CGO_LDFLAGS;
+  inherit pname version buildInputs;
   src = (nix-gitignore.gitignoreSourcePure [
     "/*" # ignore all, then add whitelists
     "!/x/"
