@@ -17,8 +17,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |-
           echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
-          #- name: draft release
-          #  run: make release
+      - name: draft release
+        run: make release
   rocksdb-release:
     runs-on: ubuntu-latest
     environment: release
@@ -34,11 +34,9 @@ jobs:
       - name: nix bundle
         run: |
           nix bundle .
-          mv ./cronosd "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.zip"
+          cp ./cronosd "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.zip"
           nix bundle .#cronosd-testnet
-          mv ./cronosd "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.zip"
-          # echo 'hello world' > "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.zip"
-          # echo 'hello world' > "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.zip"
+          cp ./cronosd "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.zip"
           echo 'FILES<<EOF' >> $GITHUB_ENV
           echo "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.zip" >> $GITHUB_ENV
           echo "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.zip" >> $GITHUB_ENV
