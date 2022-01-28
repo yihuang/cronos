@@ -26,7 +26,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: actions/checkout@v2.3.4
       - uses: cachix/install-nix-action@v15
       - uses: cachix/cachix-action@v10
         with:
@@ -35,9 +34,15 @@ jobs:
       - name: nix bundle
         run: |
           nix bundle .
-          mv ./cronosd ${GITHUB_REF#refs/*/}_Linux_x86_64_rocksdb.zip
+          mv ./cronosd "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.zip"
+          nix bundle .#cronosd-testnet
+          mv ./cronosd "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.zip"
+          echo 'FILES<<EOF' >> $GITHUB_ENV
+          echo "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.zip" >> $GITHUB_ENV
+          echo "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.zip" >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
       - name: release linux rocksdb binaries
         uses: softprops/action-gh-release@v1
         with:
           draft: true
-          files: ${GITHUB_REF#refs/*/}_Linux_x86_64_rocksdb.zip
+          files: "${{ env.FILES }}"
