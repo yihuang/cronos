@@ -17,9 +17,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |-
           echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
-      - name: draft release
-        run: make release
-      - uses: cachix/install-nix-action@v15
+      #- name: draft release
+      #  run: make release
+      - uses: cachix/install-nix-action@v16
       - uses: cachix/cachix-action@v10
         with:
           name: cronos
@@ -32,10 +32,10 @@ jobs:
           MAINNET_TAR="cronos_$(echo ${GITHUB_REF##*/} | cut -c 2-)-${DB}_${PLATFORM}.tar.gz"
           TESTNET_TAR="cronos_$(echo ${GITHUB_REF##*/} | cut -c 2-)-testnet-${DB}_${PLATFORM}.tar.gz"
           mkdir ./bin
-          nix bundle .
+          nix bundle --bundler github:NixOS/bundlers .
           mv ./cronosd ./bin
           tar cfzh "${MAINNET_TAR}" ./bin
-          nix bundle .#cronosd-testnet
+          nix bundle --bundler github:NixOS/bundlers .#cronosd-testnet
           mv ./cronosd ./bin
           tar cfzh "${TESTNET_TAR}" ./bin
           echo 'FILES<<EOF' >> $GITHUB_ENV
