@@ -17,8 +17,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |-
           echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
-      #- name: draft release
-      #  run: make release
+      - name: draft release
+        run: make release
       - uses: cachix/install-nix-action@v16
       - uses: cachix/cachix-action@v10
         with:
@@ -48,4 +48,5 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           draft: true
+          tag_name: "${GITHUB_REF##*/}"
           files: "${{ env.FILES }}"
