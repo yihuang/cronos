@@ -33,7 +33,6 @@ jobs:
           TESTNET_TAR="cronos_$(echo ${GITHUB_REF##*/} | cut -c 2-)-testnet-${DB}_${PLATFORM}.tar.gz"
           mkdir ./bin
           nix bundle --bundler github:NixOS/bundlers .
-          ls -la ./arx/
           mv ./arx ./bin
           tar cfzh "${MAINNET_TAR}" ./bin
           nix bundle --bundler github:NixOS/bundlers .#cronosd-testnet
