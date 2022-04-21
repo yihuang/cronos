@@ -29,7 +29,7 @@ const (
 
 	apiVersion = "1.0"
 
-	ExceedBlockGasLimitErrorPrefix = "out of gas in location: block gas meter; gasWanted:"
+	ExceedBlockGasLimitError = "out of gas in location: block gas meter; gasWanted:"
 )
 
 func init() {
@@ -225,8 +225,9 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 	return receipts, nil
 }
 
-// ReplayBlock return tx receipts by replay all the eth transactions
-func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash) ([]map[string]interface{}, error) {
+// ReplayBlock return tx receipts by replay all the eth transactions,
+// if postUpgrade is true, the tx that exceeded block gas limit is treated as reverted, otherwise as committed.
+func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, postUpgrade bool) ([]map[string]interface{}, error) {
 	api.logger.Debug("cronos_replayBlock", "blockNrOrHash", blockNrOrHash)
 
 	receipts := make([]map[string]interface{}, 0)
@@ -256,15 +257,21 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash) ([]m
 		return nil, err
 	}
 
+	blockGasLimitExceeded := false
+
 	var msgs []*evmtypes.MsgEthereumTx
 	for i, tx := range resBlock.Block.Txs {
 		txResult := blockRes.TxsResults[i]
-		if txResult.Code != 0 && !strings.HasPrefix(txResult.Log, ExceedBlockGasLimitErrorPrefix) {
-			// the ExceedBlockGasLimitErrorPrefix error is a special case that should not be ignored, because:
-			// 1) the tx is committed successfully before 0.7.0 upgrade,
-			// 2) the tx is failed but fee deducted and nonce increased.
-			// In either case we should return the receipt to the user.
-			continue
+		if txResult.Code != 0 {
+			if strings.Contains(txResult.Log, ExceedBlockGasLimitError) {
+				// the tx with ExceedBlockGasLimitErrorPrefix error should not be ignored because:
+				// 1) before the 0.7.0 upgrade, the tx is committed successfully.
+				// 2) after the upgrade, the tx is failed but fee deducted and nonce increased.
+				// there's at most one such case in each block, and it should be the last tx in the block.
+				blockGasLimitExceeded = true
+			} else {
+				continue
+			}
 		}
 
 		tx, err := api.clientCtx.TxConfig.TxDecoder()(tx)
@@ -370,6 +377,20 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash) ([]m
 
 		receipts = append(receipts, receipt)
 	}
+
+	if blockGasLimitExceeded && postUpgrade {
+		// after the 0.7.0 upgrade, the tx is always reverted, fix the last receipt.
+		idx := len(receipts) - 1
+		receipts[idx]["status"] = hexutil.Uint(ethtypes.ReceiptStatusFailed)
+		receipts[idx]["logs"] = []*ethtypes.Log{}
+		receipts[idx]["logsBloom"] = ethtypes.LogsBloom(nil)
+		receipts[idx]["contractAddress"] = nil
+		// the fee is deducted by the gas limit
+		refundedGas := msgs[idx].GetGas() - receipts[idx]["gasUsed"].(uint64)
+		receipts[idx]["gasUsed"] = hexutil.Uint64(receipts[idx]["gasUsed"].(uint64) + refundedGas)
+		receipts[idx]["cumulativeGasUsed"] = hexutil.Uint64(receipts[idx]["cumulativeGasUsed"].(uint64) + refundedGas)
+	}
+
 	return receipts, nil
 }
 

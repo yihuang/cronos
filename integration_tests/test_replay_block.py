@@ -43,7 +43,7 @@ def test_replay_block(custom_cronos):
         ]
         receipt1 = w3.eth.wait_for_transaction_receipt(txhashes[0])
         try:
-            receipt2 = w3.eth.wait_for_transaction_receipt(txhashes[1], timeout=60)
+            receipt2 = w3.eth.wait_for_transaction_receipt(txhashes[1], timeout=10)
         except web3.exceptions.TimeExhausted:
             # expected exception, tx2 is included but failed.
             receipt2 = None
@@ -58,9 +58,24 @@ def test_replay_block(custom_cronos):
     else:
         assert False, "timeout"
     assert not receipt2
-    # check sender's nonce is increased twice, which means both txs are included.
+    # check sender's nonce is increased twice, which means both txs are executed.
     assert nonce + 2 == w3.eth.get_transaction_count(ADDRS["validator"])
-    rsp = w3.provider.make_request("cronos_replayBlock", [hex(receipt1.blockNumber)])
+    rsp = w3.provider.make_request(
+        "cronos_replayBlock", [hex(receipt1.blockNumber), False]
+    )
     print("rsp", rsp)
     assert "error" not in rsp, rsp["error"]
     assert 2 == len(rsp["result"])
+    assert receipt1 == rsp["result"][0]
+    receipt2 = rsp["result"][1]
+    for field in [
+        "gasUsed",
+        "cumulativeGasUsed",
+        "status",
+        "logs",
+        "logsBloom",
+        "contractAddress",
+        "contractAddress",
+        "effectiveGasPrice",
+    ]:
+        assert receipt2.get(field) == receipt1.get(field)
