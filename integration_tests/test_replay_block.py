@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pytest
 import web3
+from web3._utils.method_formatters import receipt_formatter
+from web3.datastructures import AttributeDict
 
 from .network import setup_custom_cronos
 from .utils import ADDRS, CONTRACTS, KEYS, deploy_contract, sign_transaction
@@ -23,17 +25,20 @@ def test_replay_block(custom_cronos):
         key=KEYS["community"],
     )
     iterations = 400
+    gas_limit = 800000
     for i in range(10):
         nonce = w3.eth.get_transaction_count(ADDRS["validator"])
         txs = [
             contract.functions.test(iterations).buildTransaction(
                 {
                     "nonce": nonce,
+                    "gas": gas_limit,
                 }
             ),
             contract.functions.test(iterations).buildTransaction(
                 {
                     "nonce": nonce + 1,
+                    "gas": gas_limit,
                 }
             ),
         ]
@@ -63,19 +68,27 @@ def test_replay_block(custom_cronos):
     rsp = w3.provider.make_request(
         "cronos_replayBlock", [hex(receipt1.blockNumber), False]
     )
-    print("rsp", rsp)
     assert "error" not in rsp, rsp["error"]
     assert 2 == len(rsp["result"])
-    assert receipt1 == rsp["result"][0]
-    receipt2 = rsp["result"][1]
-    for field in [
-        "gasUsed",
-        "cumulativeGasUsed",
-        "status",
-        "logs",
-        "logsBloom",
-        "contractAddress",
-        "contractAddress",
-        "effectiveGasPrice",
-    ]:
-        assert receipt2.get(field) == receipt1.get(field)
+
+    # check the replay receipts are the same
+    replay_receipts = [AttributeDict(receipt_formatter(item)) for item in rsp["result"]]
+    assert replay_receipts[0].gasUsed == replay_receipts[1].gasUsed == receipt1.gasUsed
+    assert replay_receipts[0].status == replay_receipts[1].status == receipt1.status
+    assert (
+        replay_receipts[0].logsBloom
+        == replay_receipts[1].logsBloom
+        == receipt1.logsBloom
+    )
+    assert replay_receipts[0].cumulativeGasUsed == receipt1.cumulativeGasUsed
+    assert replay_receipts[1].cumulativeGasUsed == receipt1.cumulativeGasUsed * 2
+
+    # check the postUpgrade mode
+    rsp = w3.provider.make_request(
+        "cronos_replayBlock", [hex(receipt1.blockNumber), True]
+    )
+    assert "error" not in rsp, rsp["error"]
+    assert 2 == len(rsp["result"])
+    replay_receipts = [AttributeDict(receipt_formatter(item)) for item in rsp["result"]]
+    assert replay_receipts[1].status == 0
+    assert replay_receipts[1].gasUsed == gas_limit
