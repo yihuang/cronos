@@ -383,12 +383,12 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 		idx := len(receipts) - 1
 		receipts[idx]["status"] = hexutil.Uint(ethtypes.ReceiptStatusFailed)
 		receipts[idx]["logs"] = []*ethtypes.Log{}
-		receipts[idx]["logsBloom"] = ethtypes.LogsBloom(nil)
+		receipts[idx]["logsBloom"] = ethtypes.BytesToBloom(ethtypes.LogsBloom(nil))
 		receipts[idx]["contractAddress"] = nil
-		// the fee is deducted by the gas limit
-		refundedGas := msgs[idx].GetGas() - receipts[idx]["gasUsed"].(uint64)
-		receipts[idx]["gasUsed"] = hexutil.Uint64(receipts[idx]["gasUsed"].(uint64) + refundedGas)
-		receipts[idx]["cumulativeGasUsed"] = hexutil.Uint64(receipts[idx]["cumulativeGasUsed"].(uint64) + refundedGas)
+		// the fee is deducted by the gas limit, so we patch the gasUsed to gasLimit
+		refundedGas := msgs[idx].GetGas() - uint64(receipts[idx]["gasUsed"].(hexutil.Uint64))
+		receipts[idx]["gasUsed"] = hexutil.Uint64(uint64(receipts[idx]["gasUsed"].(hexutil.Uint64)) + refundedGas)
+		receipts[idx]["cumulativeGasUsed"] = hexutil.Uint64(uint64(receipts[idx]["cumulativeGasUsed"].(hexutil.Uint64)) + refundedGas)
 	}
 
 	return receipts, nil
