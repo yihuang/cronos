@@ -48,10 +48,10 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 	rsps := make([]*evmtypes.MsgEthereumTxResponse, 0, len(req.Msgs))
 
 	// prepare the block context, the multistore version should be setup already in grpc query context.
-	ctx := sdk.UnwrapSDKContext(goCtx)
-	ctx = ctx.WithBlockHeight(req.BlockNumber)
-	ctx = ctx.WithBlockTime(req.BlockTime)
-	ctx = ctx.WithHeaderHash(common.Hex2Bytes(req.BlockHash))
+	ctx := sdk.UnwrapSDKContext(goCtx).
+		WithBlockHeight(req.BlockNumber).
+		WithBlockTime(req.BlockTime).
+		WithHeaderHash(common.Hex2Bytes(req.BlockHash))
 
 	// load parameters
 	params := k.evmKeeper.GetParams(ctx)
