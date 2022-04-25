@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tendermint/tendermint/libs/log"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
 	evmrpc "github.com/tharsis/ethermint/rpc"
 	"github.com/tharsis/ethermint/rpc/ethereum/backend"
@@ -83,37 +84,46 @@ func NewCronosAPI(
 	}
 }
 
-// GetTransactionReceiptsByBlock returns all the transaction receipts included in the block.
-func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.BlockNumberOrHash) ([]map[string]interface{}, error) {
-	var receipts []map[string]interface{}
-
-	api.logger.Debug("cronos_getTransactionReceiptsByBlock", "blockNrOrHash", blockNrOrHash)
-
-	blockNum, err := api.getBlockNumber(blockNrOrHash)
+func (api *CronosAPI) GetBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
+	resBlock *coretypes.ResultBlock,
+	blockNumber int64,
+	blockHash string,
+	blockRes *coretypes.ResultBlockResults,
+	baseFee *big.Int,
+	err error,
+) {
+	var blockNum rpctypes.BlockNumber
+	blockNum, err = api.getBlockNumber(blockNrOrHash)
 	if err != nil {
-		return nil, err
+		return
 	}
-
-	resBlock, err := api.clientCtx.Client.Block(api.ctx, blockNum.TmHeight())
+	resBlock, err = api.clientCtx.Client.Block(api.ctx, blockNum.TmHeight())
 	if err != nil {
 		api.logger.Debug("block not found", "height", blockNum, "error", err.Error())
-		return nil, nil
+		return
 	}
-
-	blockNumber := resBlock.Block.Height
-	blockHash := common.BytesToHash(resBlock.Block.Header.Hash()).Hex()
-
-	blockRes, err := api.clientCtx.Client.BlockResults(api.ctx, &blockNumber)
+	blockNumber = resBlock.Block.Height
+	blockHash = common.BytesToHash(resBlock.Block.Header.Hash()).Hex()
+	blockRes, err = api.clientCtx.Client.BlockResults(api.ctx, &blockNumber)
 	if err != nil {
-		api.logger.Debug("failed to retrieve block results", "height", blockNumber, "error", err.Error())
-		return nil, nil
+		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
+		return
 	}
+	baseFee, err = api.backend.BaseFee(blockNumber)
+	if err != nil {
+		return
+	}
+	return
+}
 
-	baseFee, err := api.backend.BaseFee(blockNumber)
+// GetTransactionReceiptsByBlock returns all the transaction receipts included in the block.
+func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.BlockNumberOrHash) ([]map[string]interface{}, error) {
+	api.logger.Debug("cronos_getTransactionReceiptsByBlock", "blockNrOrHash", blockNrOrHash)
+	resBlock, blockNumber, blockHash, blockRes, baseFee, err := api.GetBlockDetail(blockNrOrHash)
 	if err != nil {
 		return nil, err
 	}
-
+	var receipts []map[string]interface{}
 	txIndex := uint64(0)
 	cumulativeGasUsed := uint64(0)
 	for i, tx := range resBlock.Block.Txs {
@@ -229,36 +239,11 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 // if postUpgrade is true, the tx that exceeded block gas limit is treated as reverted, otherwise as committed.
 func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, postUpgrade bool) ([]map[string]interface{}, error) {
 	api.logger.Debug("cronos_replayBlock", "blockNrOrHash", blockNrOrHash)
-
-	receipts := make([]map[string]interface{}, 0)
-
-	blockNum, err := api.getBlockNumber(blockNrOrHash)
+	resBlock, blockNumber, blockHash, blockRes, baseFee, err := api.GetBlockDetail(blockNrOrHash)
 	if err != nil {
 		return nil, err
 	}
-
-	resBlock, err := api.clientCtx.Client.Block(api.ctx, blockNum.TmHeight())
-	if err != nil {
-		api.logger.Debug("block not found", "height", blockNum, "error", err.Error())
-		return nil, nil
-	}
-
-	blockNumber := resBlock.Block.Height
-	blockHash := common.BytesToHash(resBlock.Block.Header.Hash()).Hex()
-
-	blockRes, err := api.clientCtx.Client.BlockResults(api.ctx, &blockNumber)
-	if err != nil {
-		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
-		return nil, nil
-	}
-
-	baseFee, err := api.backend.BaseFee(blockNumber)
-	if err != nil {
-		return nil, err
-	}
-
 	blockGasLimitExceeded := false
-
 	var msgs []*evmtypes.MsgEthereumTx
 	for i, tx := range resBlock.Block.Txs {
 		txResult := blockRes.TxsResults[i]
@@ -289,7 +274,7 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 			msgs = append(msgs, ethMsg)
 		}
 	}
-
+	receipts := make([]map[string]interface{}, 0)
 	if len(msgs) == 0 {
 		return receipts, nil
 	}
