@@ -12,8 +12,10 @@ from .utils import ADDRS, CONTRACTS, KEYS, deploy_contract, sign_transaction
 @pytest.fixture(scope="module")
 def custom_cronos(tmp_path_factory):
     path = tmp_path_factory.mktemp("cronos")
+    parent = Path(__file__).parent / "../scripts/"
     yield from setup_custom_cronos(
-        path, 26000, Path(__file__).parent / "configs/low_block_gas_limit.yaml"
+        path, 26000, parent / "cronos-devnet.yaml",
+        None, None, parent / "low_block_gas_limit.env",
     )
 
 
