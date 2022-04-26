@@ -1,4 +1,4 @@
-dotenv: .env
+dotenv: ../../scripts/.env
 cronos_777-1:
   cmd: cronosd
   start-flags: "--trace"
@@ -8,6 +8,8 @@ cronos_777-1:
       address: "0.0.0.0:{EVMRPC_PORT}"
       ws-address: "0.0.0.0:{EVMRPC_PORT_WS}"
       api: "eth,net,web3,debug,cronos"
+    evm:
+      max-tx-gas-wanted: 0
   validators:
     - coins: 1000000000000000000stake,10000000000000000000000basetcro
       staked: 1000000000000000000stake
@@ -30,7 +32,7 @@ cronos_777-1:
     consensus_params:
       block:
         max_bytes: "1048576"
-        max_gas: "81500000"
+        max_gas: "815000"
     app_state:
       evm:
         params:
