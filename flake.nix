@@ -25,11 +25,12 @@
           };
         in
         rec {
-          packages = rec {
-            cronosd = pkgs.cronosd;
-            cronosd-testnet = pkgs.cronosd-testnet;
-            cronosd-exe = pkgs.cronosd-exe;
-            cronosd-testnet-exe = pkgs.cronosd-testnet-exe;
+          packages = {
+            inherit (pkgs)
+              cronosd
+              cronosd-testnet
+              cronosd-exe
+              cronosd-testnet-exe;
           };
           apps = {
             cronosd = {

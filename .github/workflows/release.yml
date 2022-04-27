@@ -33,10 +33,9 @@ jobs:
           TESTNET_TAR="cronos_${GITHUB_REF_NAME}-testnet-${DB}_${PLATFORM}.tar.gz"
           URL="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
           nix build ${URL}#cronosd-exe
-          cd result
-          tar cfzh ../"${MAINNET_TAR}" *
+          tar cfzhv "${MAINNET_TAR}" -C result .
           nix build ${URL}#cronosd-testnet-exe
-          tar cfzh ../"${TESTNET_TAR}" *
+          tar cfzhv "${TESTNET_TAR}" -C result .
           echo 'FILES<<EOF' >> $GITHUB_ENV
           echo "${MAINNET_TAR}" >> $GITHUB_ENV
           echo "${TESTNET_TAR}" >> $GITHUB_ENV
