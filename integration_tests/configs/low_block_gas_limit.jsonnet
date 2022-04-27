@@ -1,6 +1,7 @@
-local config = import 'default.jsonnet';
+local config = import '../../scripts/default.jsonnet';
 
 std.manifestYamlDoc(config {
+  'dotenv'+: '../../scripts/.env',
   'cronos_777-1'+: {
     'app-config'+: {
       evm+: {
