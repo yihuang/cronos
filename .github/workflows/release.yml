@@ -9,16 +9,16 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
-      - name: setup release environment
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |-
-          echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
-      - name: draft release
-        run: make release
+      # - uses: actions/checkout@v2
+      #   with:
+      #     submodules: true
+      # - name: setup release environment
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |-
+      #     echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
+      # - name: draft release
+      #   run: make release
       - uses: cachix/install-nix-action@v16
       - uses: cachix/cachix-action@v10
         with:
