@@ -10,7 +10,7 @@
 - `pystarport`, a tool to run local cosmos devnet.
 - `start-geth`/`start-cronos`, convenient scripts to start the local devnets.
 
-Clone cronos repo locally and run `nix-shell integration_tests/shell.nix` in it, you'll get a virtual shell with the
+Clone cronos repo locally and run `./scripts/generate-devnet-yamls && ./scripts/generate-integration-yamls && nix-shell integration_tests/shell.nix` in it, you'll get a virtual shell with the
 above essential binaries setup in `PATH`.
 
 ### Ethereum Testnet

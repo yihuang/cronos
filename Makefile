@@ -239,6 +239,7 @@ test-sim-profile:
 ###############################################################################
 
 run-integration-tests:
+	@./scripts/generate-devnet-yamls && ./scripts/generate-integration-yamls
 	@nix-shell ./integration_tests/shell.nix --run ./scripts/run-integration-tests
 
 .PHONY: run-integration-tests

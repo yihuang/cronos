@@ -21,3 +21,6 @@ __pycache__
 
 # integration yamls
 integration_tests/configs/*.yaml
+
+# devnet yamls
+scripts/*-devnet.yaml

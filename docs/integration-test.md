@@ -47,12 +47,20 @@ make run-integration-tests
 
 To customize the test runner, you can also issue commands separately.
 
+### Generate yamls
+
+It'll generate devnet and integration yamls.
+
+```shell
+$ ./scripts/generate-devnet-yamls && ./scripts/generate-integration-yamls
+```
+
 ### Enter `nix-shell`
 
 It'll prepare all dependencies.
 
 ```shell
-$ nix-shell integration_tests/shell.nix
+$ ./scripts/generate-devnet-yamls && ./scripts/generate-integration-yamls && nix-shell ./integration_tests/shell.nix --run ./scripts/run-integration-tests
 <nix-shell> $
 ```
 
@@ -72,6 +80,7 @@ We use `pytest` to discover the test cases and run them, follow [pytest doc](htt
 You can generate yamls with:
 
 ```shell
+$ ./scripts/generate-devnet-yamls
 $ ./scripts/generate-integration-yamls
 ```
 
