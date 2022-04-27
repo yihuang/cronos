@@ -69,6 +69,12 @@ $ cd ../../
 
 We use `pytest` to discover the test cases and run them, follow [pytest doc](https://docs.pytest.org/en/6.2.x/contents.html) for more options.
 
+You can generate yamls with:
+
+```shell
+$ ./scripts/generate-integration-yamls
+```
+
 You can invoke `pytest` after entering the nix shell:
 
 ```shell

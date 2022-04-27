@@ -1838,6 +1838,14 @@
     rev = "c04b05f3adfa7f64e47bf054350f2336aea32e9d"
     sha256 = "0i75fm6pg54zvrgbvjkg46cr03pypqm4w0wv0a349f4k7ff8qv9r"
 
+["github.com/google/jsonnet"]
+  sumVersion = "v0.18.0"
+  ["github.com/google/jsonnet".fetch]
+    type = "git"
+    url = "https://github.com/google/jsonnet"
+    rev = "34419d2483927ceb17cd506cad77c3c2a96e7b8c"
+    sha256 = "16mqbs8h4cbqlhn5vbdgjhdn64ks9hq6878vfg4hs3pxmfjayss6"
+
 ["github.com/google/martian"]
   sumVersion = "v2.1.0+incompatible"
   ["github.com/google/martian".fetch]

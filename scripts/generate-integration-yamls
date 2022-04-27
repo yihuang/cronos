@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+cd "$(dirname "$0")"
+
+# explicitly set a short TMPDIR to prevent path too long issue on macosx
+export TMPDIR=/tmp
+
+files=("cosmovisor" "disable_auto_deployment" "genesis_token_mapping" "low_block_gas_limit")
+length=${#files[@]}
+folder="../integration_tests/configs"
+for (( i=0; i<${length}; i++ ))
+do
+    echo "generating "${files[$i]}".yaml"
+    jsonnet -S ${folder}/${files[$i]}.jsonnet -o ${folder}/${files[$i]}.yaml
+done
