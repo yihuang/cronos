@@ -5,43 +5,43 @@ on:
     tags:
       - "v*.*.*"
 jobs:
-  goreleaser:
-    runs-on: ubuntu-latest
-    environment: release
-    steps:
-      # - uses: actions/checkout@v2
-      #   with:
-      #     submodules: true
-      # - name: setup release environment
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   run: |-
-      #     echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
-      # - name: draft release
-      #   run: make release
-      - uses: cachix/install-nix-action@v16
-      - uses: cachix/cachix-action@v10
-        with:
-          name: cronos
-          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
-      - name: nix bundle
-        env:
-          PLATFORM: Linux_x86_64
-        run: |
-          FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
-          nix build -o cronos_${GITHUB_REF_NAME}-rocksdb_${PLATFORM}.tar.gz ${FLAKE}#cronosd-tarball
-          nix build -o cronos_${GITHUB_REF_NAME}-testnet-rocksdb_${PLATFORM}.tar.gz ${FLAKE}#cronosd-testnet-tarball
-          nix build -o cronos_${GITHUB_REF_NAME}-goleveldb_${PLATFORM}.tar.gz ${FLAKE}#cronosd-goleveldb-tarball
-          nix build -o cronos_${GITHUB_REF_NAME}-testnet-goleveldb_${PLATFORM}.tar.gz ${FLAKE}#cronosd-testnet-goleveldb-tarball
-          echo 'FILES<<EOF' >> $GITHUB_ENV
-          ls -1 *.tar.gz >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
-          cat $GITHUB_ENV
-      - name: release linux rocksdb binaries
-        uses: softprops/action-gh-release@v1
-        with:
-          draft: true
-          files: "${{ env.FILES }}"
+  #   goreleaser:
+  #     runs-on: ubuntu-latest
+  #     environment: release
+  #     steps:
+  #       # - uses: actions/checkout@v2
+  #       #   with:
+  #       #     submodules: true
+  #       # - name: setup release environment
+  #       #   env:
+  #       #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       #   run: |-
+  #       #     echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
+  #       # - name: draft release
+  #       #   run: make release
+  #       - uses: cachix/install-nix-action@v16
+  #       - uses: cachix/cachix-action@v10
+  #         with:
+  #           name: cronos
+  #           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+  #       - name: nix bundle
+  #         env:
+  #           PLATFORM: Linux_x86_64
+  #         run: |
+  #           FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
+  #           nix build -o cronos_${GITHUB_REF_NAME}-rocksdb_${PLATFORM}.tar.gz ${FLAKE}#cronosd-tarball
+  #           nix build -o cronos_${GITHUB_REF_NAME}-testnet-rocksdb_${PLATFORM}.tar.gz ${FLAKE}#cronosd-testnet-tarball
+  #           nix build -o cronos_${GITHUB_REF_NAME}-goleveldb_${PLATFORM}.tar.gz ${FLAKE}#cronosd-goleveldb-tarball
+  #           nix build -o cronos_${GITHUB_REF_NAME}-testnet-goleveldb_${PLATFORM}.tar.gz ${FLAKE}#cronosd-testnet-goleveldb-tarball
+  #           echo 'FILES<<EOF' >> $GITHUB_ENV
+  #           ls -1 *.tar.gz >> $GITHUB_ENV
+  #           echo 'EOF' >> $GITHUB_ENV
+  #           cat $GITHUB_ENV
+  #       - name: release linux rocksdb binaries
+  #         uses: softprops/action-gh-release@v1
+  #         with:
+  #           draft: true
+  #           files: "${{ env.FILES }}"
 
   aarch64_job:
     runs-on: ubuntu20.04
