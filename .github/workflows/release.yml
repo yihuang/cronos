@@ -61,7 +61,7 @@ jobs:
           files: "${{ env.FILES }}"
 
   rocksdb-aarch64-linux:
-    needs: ["goreleaser"]
+    needs: ["draft-release"]
     runs-on: ubuntu-latest
     environment: release
     steps:
