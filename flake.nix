@@ -11,7 +11,7 @@
 
   outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils }:
     let
-      rev = self.rev or "dirty";
+      rev = self.shortRev or "dirty";
     in
     (flake-utils.lib.eachDefaultSystem
       (system:
@@ -25,21 +25,15 @@
           };
         in
         rec {
-          packages = {
-            inherit (pkgs)
-              cronosd
-              cronosd-testnet
-              cronosd-exe
-              cronosd-testnet-exe;
-          };
+          packages = pkgs.cronos-matrix;
           apps = {
             cronosd = {
               type = "app";
-              program = "${pkgs.cronosd}/bin/cronosd";
+              program = "${packages.cronosd}/bin/cronosd";
             };
             cronosd-testnet = {
               type = "app";
-              program = "${pkgs.cronosd-testnet}/bin/cronosd";
+              program = "${packages.cronosd-testnet}/bin/cronosd";
             };
           };
           defaultPackage = packages.cronosd;
@@ -62,10 +56,33 @@
           go = final.go_1_17;
         };
         bundle-exe = import nix-bundle-exe { pkgs = final; };
-        cronosd = final.callPackage ./. { inherit rev; };
-        cronosd-testnet = final.callPackage ./. { inherit rev; network = "testnet"; };
-        cronosd-exe = final.bundle-exe final.cronosd;
-        cronosd-testnet-exe = final.bundle-exe final.cronosd-testnet;
-      };
+      } // (with final;
+        let
+          matrix = lib.cartesianProductOfSets {
+            db_backend = [ "goleveldb" "rocksdb" ];
+            network = [ "mainnet" "testnet" ];
+            relocatable = [ true false ];
+          };
+          binaries = builtins.listToAttrs (builtins.map
+            ({ db_backend, network, relocatable }: {
+              name = builtins.concatStringsSep "-" (
+                [ "cronosd" ] ++
+                lib.optional (network != "mainnet") network ++
+                lib.optional (db_backend != "rocksdb") db_backend ++
+                lib.optional relocatable "exe"
+              );
+              value =
+                let
+                  cronosd = callPackage ./. { inherit rev db_backend network; };
+                in
+                if relocatable then bundle-exe cronosd else cronosd;
+            })
+            matrix
+          );
+        in
+        {
+          cronos-matrix = binaries;
+        }
+      );
     };
 }
