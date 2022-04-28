@@ -71,7 +71,7 @@ jobs:
             set -o pipefail && curl -L https://nixos.org/nix/install | bash
             echo 'experimental-features = nix-command flakes' >> /etc/nix/nix.conf
 
-          env:
+          env: |
             PLATFORM: Linux_aarch64
 
           run: |
