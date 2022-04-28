@@ -68,9 +68,11 @@ jobs:
 
           install: |
             apt-get update && apt-get install --no-install-recommends -y git locales curl xz-utils vim ca-certificates && apt-get clean && rm -rf /var/lib/apt/lists/*
-            set -o pipefail && curl -L https://nixos.org/nix/install | bash
+            set -o pipefail && sh <(curl -L https://nixos.org/nix/install) --no-daemon
             echo 'experimental-features = nix-command flakes' >> /etc/nix/nix.conf
-
+            source $HOME/.nix-profile/etc/profile.d/nix.sh
+            nix-env -iA cachix -f https://cachix.org/api/v1/install
+            cachix use cronos
           env: |
             PLATFORM: Linux_aarch64
 
