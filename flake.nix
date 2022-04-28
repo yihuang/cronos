@@ -56,6 +56,12 @@
           go = final.go_1_17;
         };
         bundle-exe = import nix-bundle-exe { pkgs = final; };
+        bundle-exe-tarball = drv:
+          let bundle = final.bundle-exe drv;
+          in
+          final.runCommand bundle.name { } ''
+            "${final.gnutar}/bin/tar" cfzhv $out -C ${bundle} .
+          '';
       } // (with final;
         let
           matrix = lib.cartesianProductOfSets {
@@ -75,7 +81,7 @@
                 let
                   cronosd = callPackage ./. { inherit rev db_backend network; };
                 in
-                if relocatable then bundle-exe cronosd else cronosd;
+                if relocatable then bundle-exe-tarball cronosd else cronosd;
             })
             matrix
           );
