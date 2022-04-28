@@ -5,7 +5,10 @@
       url = "github:3noch/nix-bundle-exe";
       flake = false;
     };
-    gomod2nix.url = "github:tweag/gomod2nix";
+    gomod2nix = {
+      url = "github:tweag/gomod2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     flake-utils.url = "github:numtide/flake-utils";
   };
 
