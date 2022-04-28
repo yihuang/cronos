@@ -75,7 +75,7 @@
                 [ "cronosd" ] ++
                 lib.optional (network != "mainnet") network ++
                 lib.optional (db_backend != "rocksdb") db_backend ++
-                lib.optional relocatable "exe"
+                lib.optional relocatable "tarball"
               );
               value =
                 let
