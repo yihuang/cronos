@@ -7,7 +7,7 @@
 , rev ? "dirty"
 }:
 let
-  version = "dev";
+  version = "v0.7.0";
   pname = "cronosd";
   tags = lib.concatStringsSep "," (
     [ network ]
