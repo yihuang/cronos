@@ -956,12 +956,12 @@
     sha256 = "13d5l6p6c5wvkr6vn9hkhz9c593qifn7fgx0hg4d6jcvg1y0bnm2"
 
 ["github.com/coreos/etcd"]
-  sumVersion = "v3.3.13+incompatible"
+  sumVersion = "v3.3.10+incompatible"
   ["github.com/coreos/etcd".fetch]
     type = "git"
     url = "https://github.com/coreos/etcd"
-    rev = "98d308426819d892e149fe45f6fd542464cb1f9d"
-    sha256 = "1kac4qfr83f2hdz35403f1ald05wc85vvhw79vxb431n61jvyaqy"
+    rev = "27fc7e2296f506182f58ce846e48f36b34fe6842"
+    sha256 = "1x2ii1hj8jraba8rbxz6dmc03y3sjxdnzipdvg6fywnlq1f3l3wl"
 
 ["github.com/coreos/go-etcd"]
   sumVersion = "v2.0.0+incompatible"
@@ -3833,12 +3833,13 @@
     sha256 = "1zcms3l5fihzg8nf4vhdk18qpn1jkbm3rpkjfpskfcrgzlxk6vi5"
 
 ["github.com/tendermint/tendermint"]
-  sumVersion = "v0.34.19"
+  sumVersion = "v0.34.19-big-genesis"
+  vendorPath = "github.com/yihuang/tendermint"
   ["github.com/tendermint/tendermint".fetch]
     type = "git"
-    url = "https://github.com/tendermint/tendermint"
-    rev = "2f231ceb952a2426cf3c0abaf0b455aadd11e5b2"
-    sha256 = "1j04xnaf2l1swj5rfijiq7632v6nnj8mvn0gmd6qbqjgy5q47frm"
+    url = "https://github.com/yihuang/tendermint"
+    rev = "75c793d765a8c0304e5b7413b2f0a7f07edb5ef4"
+    sha256 = "14adamk0r8cfz000xbzikcn6qqkm8w068k7nirz8qsaacw015lhk"
 
 ["github.com/tendermint/tm-db"]
   sumVersion = "v0.6.7"
