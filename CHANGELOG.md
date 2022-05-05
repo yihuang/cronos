@@ -6,6 +6,10 @@
 
 - [#454](https://github.com/crypto-org-chain/cronos/pull/454) Add back the latest testnet upgrade handler.
 
+### Improvements
+
+- [#458](https://github.com/crypto-org-chain/cronos/pull/458) Add `fix-unlucky-tx` command to patch the false-failed transactions in blocks before the v0.7.0 upgrade.
+
 *May 3, 2022*
 
 ## v0.7.0
