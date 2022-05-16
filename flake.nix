@@ -21,7 +21,7 @@
       rev = self.shortRev or "dirty";
       mkApp = drv: {
         type = "app";
-        program = "${drv}bin/${drv.meta.mainProgram}";
+        program = "${drv}/bin/${drv.meta.mainProgram}";
       };
     in
     (flake-utils.lib.eachDefaultSystem
@@ -64,7 +64,7 @@
         nix-bundle = import nix-bundle { nixpkgs = final; };
         bundle-drx = drv:
           let
-            program = "${drv}bin/${drv.meta.mainProgram}";
+            program = "${drv}/bin/${drv.meta.mainProgram}";
             script = final.writeScript "startup" ''
               #!/bin/sh
               .${final.nix-bundle.nix-user-chroot}/bin/nix-user-chroot -n ./nix -- ${program} "$@"
