@@ -69,11 +69,15 @@
               #!/bin/sh
               .${final.nix-bundle.nix-user-chroot}/bin/nix-user-chroot -n ./nix -- ${program} "$@"
             '';
+            arx = final.nix-bundle.makebootstrap {
+              targets = [ script ];
+              startup = ".${builtins.unsafeDiscardStringContext script} '\"$@\"'";
+            };
           in
-          final.nix-bundle.makebootstrap {
-            targets = [ script ];
-            startup = ".${builtins.unsafeDiscardStringContext script} '\"$@\"'";
-          };
+          final.runCommand ("arx-" + drv.name) ''
+            mkdir -p $out/bin
+            cp $arx $out/bin/
+          '';
         make-tarball = drv: final.runCommand drv.name { } ''
           "${final.gnutar}/bin/tar" cfzhv $out -C ${drv} .
         '';
