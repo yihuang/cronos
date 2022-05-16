@@ -74,7 +74,7 @@
               startup = ".${builtins.unsafeDiscardStringContext script} '\"$@\"'";
             };
           in
-          final.runCommand ("arx-" + drv.name) ''
+          final.runCommand ("arx-" + drv.name) { } ''
             mkdir -p $out/bin
             cp $arx $out/bin/
           '';
