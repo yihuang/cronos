@@ -62,7 +62,7 @@
         };
         bundle-exe = import nix-bundle-exe { pkgs = final; };
         nix-bundle = import nix-bundle { nixpkgs = final; };
-        bundle-drx = drv:
+        bundle-arx = drv:
           let
             program = "${drv}/bin/${drv.meta.mainProgram}";
             script = final.writeScript "startup" ''
@@ -106,7 +106,7 @@
                 let
                   cronosd = callPackage ./. { inherit rev db_backend network; };
                   bundle = bundle-exe cronosd;
-                  arx-bundle = bundle-drx cronosd;
+                  arx-bundle = bundle-arx cronosd;
                 in
                 if pkgtype == "bundle" then
                   bundle
