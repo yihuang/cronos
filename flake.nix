@@ -76,7 +76,7 @@
           in
           final.runCommand ("arx-" + drv.name) { } ''
             mkdir -p $out/bin
-            cp ${arx} $out/bin/
+            cp ${arx} $out/bin/${drv.meta.mainProgram}
           '';
         make-tarball = drv: final.runCommand drv.name { } ''
           "${final.gnutar}/bin/tar" cfzhv $out -C ${drv} .
