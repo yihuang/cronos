@@ -55,8 +55,11 @@ jobs:
           nix build -L ${FLAKE}#cronosd-testnet-goleveldb-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
 
+          sha256sum *.tar.gz > checksums-x86-64.txt
+
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV
+          ls -1 checksums-*.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
           cat $GITHUB_ENV
       - name: upload linux/mac x86_64 rocksdb binaries
@@ -99,8 +102,11 @@ jobs:
           nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-testnet-goleveldb-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
 
+          sha256sum *.tar.gz > checksums-aarch64-linux.txt
+
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV
+          ls -1 checksums-*.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
           cat $GITHUB_ENV
       - name: upload linux arm64 rocksdb binaries
