@@ -10,11 +10,16 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-utils.url = "github:numtide/flake-utils";
+    nix-bundle.url = "github:matthewbauer/nix-bundle";
   };
 
-  outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils }:
+  outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils, nix-bundle }:
     let
       rev = self.shortRev or "dirty";
+      mkApp = drv: {
+        type = "app";
+        program = "${drv}bin/${drv.meta.mainProgram}";
+      };
     in
     (flake-utils.lib.eachDefaultSystem
       (system:
@@ -30,14 +35,8 @@
         rec {
           packages = pkgs.cronos-matrix;
           apps = {
-            cronosd = {
-              type = "app";
-              program = "${packages.cronosd}/bin/cronosd";
-            };
-            cronosd-testnet = {
-              type = "app";
-              program = "${packages.cronosd-testnet}/bin/cronosd";
-            };
+            cronosd = mkApp packages.cronosd;
+            cronosd-testnet = mkApp packages.cronosd-testnet;
           };
           defaultPackage = packages.cronosd;
           defaultApp = apps.cronosd;
@@ -59,12 +58,22 @@
           go = final.go_1_17;
         };
         bundle-exe = import nix-bundle-exe { pkgs = final; };
-        bundle-exe-tarball = drv:
-          let bundle = final.bundle-exe drv;
+        nix-bundle = import nix-bundle { nixpkgs = final; };
+        bundle-drx = drv:
+          let
+            program = "${drv}bin/${drv.meta.mainProgram}";
+            script = final.writeScript "startup" ''
+              #!/bin/sh
+              .${final.nix-bundle.nix-user-chroot}/bin/nix-user-chroot -n ./nix -- ${program} "$@"
+            '';
           in
-          final.runCommand bundle.name { } ''
-            "${final.gnutar}/bin/tar" cfzhv $out -C ${bundle} .
-          '';
+          final.nix-bundle.makebootstrap {
+            targets = [ script ];
+            startup = ".${builtins.unsafeDiscardStringContext script} '\"$@\"'";
+          };
+        make-tarball = drv: final.runCommand drv.name { } ''
+          "${final.gnutar}/bin/tar" cfzhv $out -C ${drv} .
+        '';
       } // (with final;
         let
           matrix = lib.cartesianProductOfSets {
@@ -74,6 +83,8 @@
               "nix" # normal nix package
               "bundle" # relocatable bundled package
               "tarball" # tarball of the bundle, for distribution and checksum
+              "arx" # single-file archive executable using chroot, linux only
+              "arxtarball"
             ];
           };
           binaries = builtins.listToAttrs (builtins.map
@@ -87,11 +98,17 @@
               value =
                 let
                   cronosd = callPackage ./. { inherit rev db_backend network; };
+                  bundle = bundle-exe cronosd;
+                  arx-bundle = bundle-drx cronosd;
                 in
                 if pkgtype == "bundle" then
-                  bundle-exe cronosd
+                  bundle
                 else if pkgtype == "tarball" then
-                  bundle-exe-tarball cronosd
+                  make-tarball bundle
+                else if pkgtype == "arx" then
+                  arx-bundle
+                else if pkgtype == "arxtarball" then
+                  make-tarball arx-bundle
                 else
                   cronosd;
             })
