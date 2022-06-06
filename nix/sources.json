@@ -1,4 +1,16 @@
 {
+    "chain-main": {
+        "branch": "master",
+        "description": "Crypto.org Chain⛓: Croeseid Testnet and beyond development",
+        "homepage": "https://crypto.org",
+        "owner": "crypto-org-chain",
+        "repo": "chain-main",
+        "rev": "a7ac0c321e98b93c3bcfa4c98a69c313183190d8",
+        "sha256": "05ylri22w49i8r0z6zyb446jbs5wvm8y51gf21yl4ysqj65ad054",
+        "type": "tarball",
+        "url": "https://github.com/crypto-org-chain/chain-main/archive/a7ac0c321e98b93c3bcfa4c98a69c313183190d8.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "cosmos-sdk": {
         "branch": "v0.45.0",
         "description": ":chains: A Framework for Building High Value Public Blockchains :sparkles:",
