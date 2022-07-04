@@ -20,6 +20,7 @@ import sources.nixpkgs {
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
         buildGoModule = pkgs.buildGo117Module;
       };
+      flake-compat = import sources.flake-compat;
     }) # update to a version that supports eip-1559
     (import (sources.gomod2nix + "/overlay.nix"))
     (pkgs: _:
@@ -50,9 +51,9 @@ import sources.nixpkgs {
     })
     (_: pkgs: { test-env = import ./testenv.nix { inherit pkgs; }; })
     (_: pkgs: {
-      rocksdb = pkgs.rocksdb.overrideAttrs (old: rec {
+      rocksdb = (pkgs.rocksdb.override { enableJemalloc = true; }).overrideAttrs (old: rec {
         pname = "rocksdb";
-        version = "6.27.3";
+        version = "6.29.5";
         src = sources.rocksdb;
       });
     })
