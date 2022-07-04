@@ -19,7 +19,7 @@ config {
     }],
     genesis+: {
       app_state+: {
-        evm+: {
+        feemarket+: {
           params+: {
             min_gas_multiplier: '0',
           },
