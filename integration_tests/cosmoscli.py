@@ -1144,3 +1144,32 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+
+    def query_icactl_params(self, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "icactl",
+                "params",
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def query_icacontroller_params(self, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "interchain-accounts",
+                "controller",
+                "params",
+                **(default_kwargs | kwargs),
+            )
+        )
