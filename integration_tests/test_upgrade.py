@@ -117,5 +117,5 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     wait_for_port(ports.rpc_port(custom_cronos.base_port(0)))
 
     # check ica controller is enabled
-    print(cli.query_icacontroller_params())
-    print(cli.query_icactl_params())
+    assert cli.query_icacontroller_params() == {"controller_enabled": True}
+    assert cli.query_icactl_params() == {"params": {"minTimeoutDuration": "3600s"}}
