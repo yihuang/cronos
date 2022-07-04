@@ -31,7 +31,8 @@ class IBCNetwork(NamedTuple):
 def ibc(request, tmp_path_factory):
     "start-cronos"
     path = tmp_path_factory.mktemp("ibc")
-    gen = setup_custom_cronos(path, 26700, Path(__file__).parent / "configs/ibc.yaml")
+    config_path = Path(__file__).parent / "configs/ibc.jsonnet"
+    gen = setup_custom_cronos(path, 26700, config_path)
     cronos = next(gen)
     try:
         chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
