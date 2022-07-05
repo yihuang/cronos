@@ -41,6 +41,8 @@ TEST_CONTRACTS = {
     "TestMessageCall": "TestMessageCall.sol",
     "CroBridge": "CroBridge.sol",
     "CronosGravityCancellation": "CronosGravityCancellation.sol",
+    "CronosGravityCancellation": "CronosGravityCancellation.sol",
+    "TestBank": "TestBank.sol",
 }
 
 
