@@ -55,7 +55,7 @@ import sources.nixpkgs {
         };
       };
     })
-    (_: pkgs: { test-env = import ./testenv.nix { inherit pkgs; }; })
+    (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (_: pkgs: {
       rocksdb = (pkgs.rocksdb.override { enableJemalloc = true; }).overrideAttrs (old: rec {
         pname = "rocksdb";

@@ -9,7 +9,6 @@ pkgs.mkShell {
     pkgs.go-ethereum
     pkgs.gorc
     pkgs.cosmovisor
-    pkgs.poetry
     pkgs.nodejs
     pkgs.git
     pkgs.dapp
@@ -17,7 +16,6 @@ pkgs.mkShell {
     pkgs.test-env
     pkgs.nixpkgs-fmt
     pkgs.rocksdb
-    (import ../nix/testenv.nix { inherit pkgs; })
     (import ../nix/chainmain.nix { inherit pkgs; })
     (import ../nix/hermes.nix { inherit pkgs; })
   ];
