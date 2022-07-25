@@ -3,12 +3,15 @@ import json
 import subprocess
 from pathlib import Path
 from typing import NamedTuple
+import time
+import hashlib
 
 import pytest
 from pystarport import ports
 
 from .network import Chainmain, Cronos, Hermes, setup_custom_cronos
 from .utils import (
+    KEYS,
     ADDRS,
     CONTRACTS,
     deploy_contract,
@@ -44,7 +47,7 @@ def ibc(request, tmp_path_factory):
         subprocess.check_call(
             [
                 "hermes",
-                "-c",
+                "--config",
                 hermes.configpath,
                 "create",
                 "channel",
@@ -70,6 +73,13 @@ def get_balance(chain, addr, denom):
     return chain.cosmos_cli().balance(addr, denom)
 
 
+def get_ibc_cro_denom(channel="channel-0"):
+    denom_hash = (
+        hashlib.sha256(f"transfer/{channel}/basecro".encode()).hexdigest().upper()
+    )
+    return f"ibc/{denom_hash}"
+
+
 def test_ibc(ibc):
     "test sending basecro from crypto-org chain to cronos"
     # wait for hermes
@@ -91,7 +101,7 @@ def test_ibc(ibc):
     # dstchainid srcchainid srcportid srchannelid
     # chainmain-1 -> cronos_777-1
     cmd = (
-        f"hermes -c {my_config} tx raw ft-transfer "
+        f"hermes --config {my_config} tx raw ft-transfer "
         f"{my_ibc1} {my_ibc0} transfer {my_channel} {src_amount} "
         f"-o 1000 -n 1 -d {src_denom} -r {coin_receiver} -k relayer"
     )
@@ -108,6 +118,98 @@ def test_ibc(ibc):
     wait_for_fn("check balance change", check_balance_change)
     expectedbalance = olddstbalance + dst_amount
     assert expectedbalance == newdstbalance
+
+
+def test_precompiles_ibc(ibc):
+    """
+    test sending basetcro from cronos to crypto-org-chain using precompile ibc transfer.
+    depends on `test_ibc` to send the original coins.
+    """
+    # wait for hermes
+    output = subprocess.getoutput(
+        f"curl -s -X GET 'http://127.0.0.1:{ibc.hermes.port}/state' | jq"
+    )
+    assert json.loads(output)["status"] == "success"
+
+    portId = "transfer"
+    channelId = "channel-0"
+    coin_receiver = ibc.chainmain.cosmos_cli().address("signer2")
+    dst_amount = 2
+    ratio = 10**10
+    # the decimal places difference
+    src_amount = dst_amount * ratio
+    src_denom = "basetcro"
+    dst_denom = "basecro"
+
+    w3 = ibc.cronos.w3
+    addr = ADDRS["signer2"]
+    src_addr = f"{eth_to_bech32(addr)}"
+    signer = ADDRS["community"]
+    signer_key = KEYS["community"]
+    src_signer = f"{eth_to_bech32(signer)}"
+    contract = deploy_contract(w3, CONTRACTS["TestIbc"], signer_key)
+
+    def get_src_balance():
+        src_balance = get_balance(ibc.cronos, src_addr, src_denom)
+        print("src_balance", src_balance, addr)
+        print("signer_balance", get_balance(ibc.cronos, src_signer, src_denom), src_signer)
+        return src_balance
+
+    def get_dst_balance():
+        dst_balance = get_balance(ibc.chainmain, coin_receiver, dst_denom)
+        print("dst_balance", dst_balance, coin_receiver)
+        return dst_balance
+
+    def assert_transfer(timeout, diff):
+        tx = contract.functions.nativeTransfer(
+            portId, channelId, addr, coin_receiver,
+            src_amount, src_denom, dst_denom, ratio, timeout,
+        ).buildTransaction({"from": signer})
+        receipt = send_transaction(w3, tx, signer_key)
+        assert receipt.status == 1, "expect transfer success"
+        max_retry = 10
+        sleep = 1
+        has = True
+        last_ack_seq = contract.caller.getLastAckSeq()
+        next_ack_seq = contract.caller.nativeQueryNextSeq(portId, channelId)
+        assert last_ack_seq + diff == next_ack_seq, "expect ack diff: {diff}"
+        for _ in range(max_retry):
+            has = contract.caller.nativeHasCommit(portId, channelId, last_ack_seq)
+            next_ack_seq = contract.caller.nativeQueryNextSeq(portId, channelId)
+            print("commit", has, "last ack", last_ack_seq, "next ack", next_ack_seq)
+            time.sleep(sleep)
+            if not has:
+                break
+        assert not has, "expect packet delete success"
+
+    print("no timeout")
+    [old_src_balance, old_dst_balance] = [get_src_balance(), get_dst_balance()]
+    timeout = 0
+    diff = 1
+    assert_transfer(timeout, diff)
+    assert old_src_balance - src_amount == get_src_balance()
+    assert old_dst_balance + dst_amount == get_dst_balance()
+
+    print("ack timeout")
+    [old_src_balance, old_dst_balance] = [get_src_balance(), get_dst_balance()]
+    timeout = 10
+    diff = 0
+    assert_transfer(timeout, diff)
+    assert old_src_balance == get_src_balance()
+    assert old_dst_balance == get_dst_balance()
+
+    print("revert")
+    [old_src_balance, old_dst_balance] = [get_src_balance(), get_dst_balance()]
+    timeout = 0
+    diff = 0
+    tx = contract.functions.nativeTransferRevert(
+        portId, channelId, addr, coin_receiver,
+        src_amount, src_denom, dst_denom, ratio, timeout,
+    ).buildTransaction({"from": signer, "gas": 210000})
+    receipt = send_transaction(w3, tx, signer_key)
+    assert receipt.status == 0, "expect revert success"
+    assert old_src_balance == get_src_balance()
+    assert old_dst_balance == get_dst_balance()
 
 
 def test_cronos_transfer_tokens(ibc):

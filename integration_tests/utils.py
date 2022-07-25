@@ -43,6 +43,7 @@ TEST_CONTRACTS = {
     "CronosGravityCancellation": "CronosGravityCancellation.sol",
     "CronosGravityCancellation": "CronosGravityCancellation.sol",
     "TestBank": "TestBank.sol",
+    "TestIbc": "TestIbc.sol",
 }
 
 

@@ -145,7 +145,6 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
-	gopkg.in/olebedev/go-duktape.v3 v3.0.0-20200619000410-60c24ae608a6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	nhooyr.io/websocket v1.8.6 // indirect
 )
@@ -163,6 +162,6 @@ replace (
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
 
-replace github.com/evmos/ethermint => github.com/yihuang/ethermint v0.6.1-0.20220705141118-fa49d4014cfa
+replace github.com/evmos/ethermint => github.com/mmsqe/ethermint v0.7.0-rc7
 
 replace github.com/ethereum/go-ethereum => github.com/yihuang/go-ethereum v1.10.17-0.20220701082238-e1e3fc47e56a
