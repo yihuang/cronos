@@ -127,7 +127,7 @@ def test_precompiles_ibc(ibc):
     print("ack timeout")
     [old_src_balance, old_dst_balance] = [get_src_balance(), get_dst_balance()]
     timeout = 0
-    diff = 0
+    diff = 1
     assert_transfer(timeout, diff)
     assert old_src_balance == get_src_balance()
     assert old_dst_balance == get_dst_balance()
@@ -135,7 +135,7 @@ def test_precompiles_ibc(ibc):
     print("revert")
     [old_src_balance, old_dst_balance] = [get_src_balance(), get_dst_balance()]
     timeout = 86400000000000
-    diff = 0
+    diff = 1
     tx = contract.functions.nativeTransferRevert(
         Params(port_id, channel_id, src_denom, dst_denom, ratio, timeout),
         addr,
