@@ -1,13 +1,25 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.6;
+pragma solidity ^0.8.0;
 
-contract TestIbc {
+contract TestIbcBase {
+    struct Params {
+        string portId;
+        string channelId;
+        string srcDenom;
+        string dstDenom;
+        uint256 ratio;
+        uint256 timeout;
+    }
+}
+
+contract TestIbc is TestIbcBase {
     address constant ibcContract = 0x0000000000000000000000000000000000000065;
     uint256 lastAckSeq;
-    
-    function nativeTransfer(string memory portId, string memory channelId, address sender, string memory receiver, uint256 amount, string memory srcDenom, string memory dstDenom, uint256 ratio, uint256 timeout) public returns (uint256) {
+
+    function nativeTransfer(Params memory params, address sender, string memory receiver, uint256 amount) public returns (uint256) {
         (bool result, bytes memory data) = ibcContract.call(abi.encodeWithSignature(
-            "transfer(string,string,address,string,uint256,string,string,uint256,uint256)", portId, channelId, sender, receiver, amount, srcDenom, dstDenom, ratio, timeout
+            "transfer(string,string,string,string,uint256,uint256,address,string,uint256)",
+            params.portId, params.channelId, params.srcDenom, params.dstDenom, params.ratio, params.timeout, sender, receiver, amount
         ));
         require(result, "native call");
         lastAckSeq = abi.decode(data, (uint256));
@@ -27,11 +39,11 @@ contract TestIbc {
         require(result, "native call");
         return abi.decode(data, (uint256));
     }
-    function getLastAckSeq() public returns (uint256) {
+    function getLastAckSeq() public view returns (uint256) {
         return lastAckSeq;
     }
-     function nativeTransferRevert(string memory portId, string memory channelId, address sender, string memory receiver, uint256 amount, string memory srcDenom, string memory dstDenom, uint256 ratio, uint256 timeout) public {
-        nativeTransfer(portId, channelId, sender, receiver, amount, srcDenom, dstDenom, ratio, timeout);
+     function nativeTransferRevert(Params memory params, address sender, string memory receiver, uint256 amount) public {
+        nativeTransfer(params, sender, receiver, amount);
         revert("test");
     }
 }

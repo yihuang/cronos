@@ -12,9 +12,9 @@ import (
 	"github.com/crypto-org-chain/cronos/app"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/stretchr/testify/suite"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 )
 
 type CronosTestSuite struct {
@@ -38,7 +38,6 @@ func (suite *CronosTestSuite) SetupTest() {
 	suite.app = app.Setup(false, suite.address.String(), true)
 	suite.ctx = suite.app.BaseApp.NewContext(checkTx, tmproto.Header{Height: 1, ChainID: app.TestAppChainID, Time: time.Now().UTC()})
 	suite.handler = cronos.NewHandler(suite.app.CronosKeeper)
-
 }
 
 func (suite *CronosTestSuite) TestInvalidMsg() {
@@ -73,7 +72,7 @@ func (suite *CronosTestSuite) TestMsgConvertVouchers() {
 			"Correct address with non supported coin denom",
 			types.NewMsgConvertVouchers(suite.address.String(), sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1)))),
 			func() {},
-			errors.New("coin fake is not supported for wrapping"),
+			errors.New("coin fake is not supported for conversion"),
 		},
 	}
 
@@ -119,7 +118,7 @@ func (suite *CronosTestSuite) TestMsgTransferTokens() {
 			"Correct address with non supported coin denom",
 			types.NewMsgTransferTokens(suite.address.String(), "to", sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1)))),
 			func() {},
-			errors.New("coin fake is not supported"),
+			errors.New("the coin fake is neither an ibc voucher or a cronos token"),
 		},
 	}
 	for _, tc := range testCases {
@@ -141,7 +140,7 @@ func (suite *CronosTestSuite) TestUpdateTokenMapping() {
 	denom := "gravity0x6E7eef2b30585B2A4D45Ba9312015d5354FDB067"
 	contract := "0x57f96e6B86CdeFdB3d412547816a82E3E0EbF9D2"
 
-	msg := types.NewMsgUpdateTokenMapping(suite.address.String(), denom, contract)
+	msg := types.NewMsgUpdateTokenMapping(suite.address.String(), denom, contract, "", 0)
 	handler := cronos.NewHandler(suite.app.CronosKeeper)
 	_, err := handler(suite.ctx, msg)
 	suite.Require().NoError(err)

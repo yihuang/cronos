@@ -9,7 +9,7 @@ def test_precompiles(cronos):
     tx = contract.functions.nativeMint(amount).buildTransaction({"from": addr})
     receipt = send_transaction(w3, tx)
     assert receipt.status == 1, "expect success"
-    
+
     # query balance through contract
     assert contract.caller.nativeBalanceOf(addr) == amount
     # query balance through cosmos rpc
