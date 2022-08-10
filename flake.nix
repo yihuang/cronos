@@ -1,13 +1,13 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/release-21.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
     nix-bundle-exe = {
       url = "github:3noch/nix-bundle-exe";
       flake = false;
     };
     gomod2nix = {
-      url = "github:tweag/gomod2nix";
+      url = "github:yihuang/gomod2nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.utils.follows = "flake-utils";
     };
@@ -48,7 +48,7 @@
           devShells = {
             cronosd = pkgs.mkShell {
               buildInputs = with pkgs; [
-                go_1_17
+                go_1_18
                 rocksdb
                 gomod2nix
               ];

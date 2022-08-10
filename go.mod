@@ -1,10 +1,10 @@
 module github.com/crypto-org-chain/cronos
 
-go 1.17
+go 1.18
 
 require (
 	github.com/armon/go-metrics v0.4.0
-	github.com/cosmos/cosmos-sdk v0.45.5-0.20220523154235-2921a1c3c918
+	github.com/cosmos/cosmos-sdk v0.45.7-0.20220704191917-10961d04497f
 	github.com/cosmos/ibc-go/v3 v3.1.0
 	github.com/ethereum/go-ethereum v1.10.17
 	github.com/evmos/ethermint v0.6.1-0.20220629170828-b7878fd6f125
@@ -145,7 +145,6 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
-	gopkg.in/olebedev/go-duktape.v3 v3.0.0-20200619000410-60c24ae608a6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	nhooyr.io/websocket v1.8.6 // indirect
 )
@@ -153,7 +152,7 @@ require (
 replace (
 	// TODO: fix keyring upstream
 	github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes
-	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.45.5-0.20220523154235-2921a1c3c918
+	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.45.7-0.20220704191917-10961d04497f
 
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
@@ -163,6 +162,6 @@ replace (
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
 
-replace github.com/evmos/ethermint => github.com/yihuang/ethermint v0.6.1-0.20220705141118-fa49d4014cfa
+replace github.com/evmos/ethermint => github.com/mmsqe/ethermint v0.7.0-rc10
 
 replace github.com/ethereum/go-ethereum => github.com/yihuang/go-ethereum v1.10.17-0.20220701082238-e1e3fc47e56a

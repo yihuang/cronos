@@ -63,8 +63,8 @@ schema = 3
     version = "v1.0.4"
     hash = "sha256-JvcBXBdjdmnaW/nyf/tw/uaOAGn1b78yxrtl2/Rs3kA="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.45.5-0.20220523154235-2921a1c3c918"
-    hash = "sha256-0HYbtx3fccZX78Hmdw7C8QK1OfLIWthDWYiT8Tm6mPo="
+    version = "v0.45.7-0.20220704191917-10961d04497f"
+    hash = "sha256-s3eepQ5GrJ+0kQdh8Rhb45+JuqdQKFlT9988C4DEInk="
     replaced = "github.com/cosmos/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -119,9 +119,9 @@ schema = 3
     hash = "sha256-o/1JCf3bBE4650sq4tIvXFrI8bwsGkA5Ug26A5KPPOY="
     replaced = "github.com/yihuang/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20220705141118-fa49d4014cfa"
-    hash = "sha256-VgFgNwaqPuW5CbirE2LU0MeU/fM5QzT7B2qBOFLSxkc="
-    replaced = "github.com/yihuang/ethermint"
+    version = "v0.7.0-rc10"
+    hash = "sha256-YDOAer2/GlwBQtFHBD/s01O8Fq78LbBbqyL1hFJl1E0="
+    replaced = "github.com/mmsqe/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.1"
     hash = "sha256-TNXnnC/ZGNY9lInAcES1cBGqIdEljKuh5LH/khVFjVk="
@@ -422,9 +422,6 @@ schema = 3
   [mod."gopkg.in/natefinch/npipe.v2"]
     version = "v2.0.0-20160621034901-c1b8fa8bdcce"
     hash = "sha256-ytqeVZqn4kd2uc65HvEjPlpPA2VnBmPfu5DsFlO0o+g="
-  [mod."gopkg.in/olebedev/go-duktape.v3"]
-    version = "v3.0.0-20200619000410-60c24ae608a6"
-    hash = "sha256-UJUZBDLWa5kj8N+HC+80uEzfhFUj3pVjbTCwLQRqyRY="
   [mod."gopkg.in/yaml.v2"]
     version = "v2.4.0"
     hash = "sha256-uVEGglIedjOIGZzHW4YwN1VoRSTK8o0eGZqzd+TNdd0="

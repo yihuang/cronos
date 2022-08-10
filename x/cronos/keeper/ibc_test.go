@@ -3,7 +3,6 @@ package keeper_test
 import (
 	"errors"
 	"fmt"
-
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -18,7 +17,6 @@ import (
 const CorrectIbcDenom = "ibc/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
-
 	privKey, err := ethsecp256k1.GenerateKey()
 	suite.Require().NoError(err)
 	address := sdk.AccAddress(privKey.PubKey().Address())
@@ -52,7 +50,7 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 			address.String(),
 			sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1))),
 			func() {},
-			errors.New("coin fake is not supported for wrapping"),
+			errors.New("coin fake is not supported for conversion"),
 			func() {},
 		},
 		{
@@ -112,7 +110,7 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 				// Verify CRC20 balance post operation
 				contract, found := suite.app.CronosKeeper.GetContractByDenom(suite.ctx, CorrectIbcDenom)
 				suite.Require().True(found)
-				ret, err := suite.app.CronosKeeper.CallModuleCRC20(suite.ctx, contract, "balanceOf", common.BytesToAddress(address.Bytes()))
+				ret, err := suite.app.CronosKeeper.CallModuleCRC21(suite.ctx, contract, "balanceOf", common.BytesToAddress(address.Bytes()))
 				suite.Require().NoError(err)
 				suite.Require().Equal(big.NewInt(123), big.NewInt(0).SetBytes(ret))
 			},
@@ -136,7 +134,6 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 }
 
 func (suite *KeeperTestSuite) TestIbcTransferCoins() {
-
 	privKey, err := ethsecp256k1.GenerateKey()
 	suite.Require().NoError(err)
 	address := sdk.AccAddress(privKey.PubKey().Address())
@@ -172,9 +169,18 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 			"Correct address with non supported coin denom",
 			address.String(),
 			"to",
+			sdk.NewCoins(sdk.NewCoin("ibc/BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", sdk.NewInt(1))),
+			func() {},
+			errors.New("coin ibc/BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA is not supported"),
+			func() {},
+		},
+		{
+			"Correct address with incorrect coin denom",
+			address.String(),
+			"to",
 			sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1))),
 			func() {},
-			errors.New("coin fake is not supported"),
+			errors.New("the coin fake is neither an ibc voucher or a cronos token"),
 			func() {},
 		},
 		{
@@ -230,7 +236,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 				// Add support for the IBC token
 				suite.app.CronosKeeper.SetAutoContractForDenom(suite.ctx, "incorrect", common.HexToAddress("0x11"))
 			},
-			errors.New("incorrect is invalid: ibc cro denom is invalid"),
+			errors.New("the coin incorrect is neither an ibc voucher or a cronos token"),
 			func() {
 			},
 		},

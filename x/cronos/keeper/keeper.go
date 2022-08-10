@@ -2,7 +2,11 @@ package keeper
 
 import (
 	"fmt"
+	"strings"
 
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 
 	"github.com/tendermint/tendermint/libs/log"
@@ -50,7 +54,6 @@ func NewKeeper(
 	accountKeeper types.AccountKeeper,
 	// this line is used by starport scaffolding # ibc/keeper/parameter
 ) *Keeper {
-
 	// set KeyTable if it has not already been set
 	if !paramSpace.HasKeyTable() {
 		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
@@ -186,7 +189,8 @@ func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address c
 func (k Keeper) OnRecvVouchers(
 	ctx sdk.Context,
 	tokens sdk.Coins,
-	receiver string) {
+	receiver string,
+) {
 	cacheCtx, commit := ctx.CacheContext()
 	err := k.ConvertVouchersToEvmCoins(cacheCtx, receiver, tokens)
 	if err == nil {
@@ -197,4 +201,83 @@ func (k Keeper) OnRecvVouchers(
 			fmt.Sprintf("Failed to convert vouchers to evm tokens for receiver %s, coins %s. Receive error %s",
 				receiver, tokens.String(), err))
 	}
+}
+
+func (k Keeper) GetBalance(ctx sdk.Context, addr sdk.AccAddress, denom string) sdk.Coin {
+	return k.bankKeeper.GetBalance(ctx, addr, denom)
+}
+
+func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) authtypes.AccountI {
+	return k.accountKeeper.GetAccount(ctx, addr)
+}
+
+// RegisterOrUpdateTokenMapping update the token mapping, register a coin metadata if needed
+func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpdateTokenMapping) error {
+	if types.IsSourceCoin(msg.Denom) {
+		contract, err := types.GetContractAddressFromDenom(msg.Denom)
+		if err != nil {
+			return err
+		}
+		// we check that denom use the same contract address in checksum format
+		if contract != common.HexToAddress(msg.Contract).Hex() {
+			return sdkerrors.Wrapf(
+				sdkerrors.ErrInvalidRequest,
+				"coin denom %s does not match with contract address %s",
+				msg.Denom, common.HexToAddress(msg.Contract).Hex())
+		}
+
+		// check that the coin is registered, otherwise register it
+		metadata, exist := k.bankKeeper.GetDenomMetaData(ctx, msg.Denom)
+		if !exist {
+			// create new metadata
+			metadata = banktypes.Metadata{
+				Base: msg.Denom,
+				Name: msg.Denom,
+			}
+		}
+		// update existing metadata
+		metadata.Symbol = msg.Symbol
+		metadata.Display = strings.ToLower(msg.Symbol)
+		if msg.Decimal != 0 {
+			metadata.DenomUnits = []*banktypes.DenomUnit{
+				{
+					Denom:    metadata.Base,
+					Exponent: 0,
+				},
+				{
+					Denom:    metadata.Display,
+					Exponent: msg.Decimal,
+				},
+			}
+		} else {
+			metadata.DenomUnits = []*banktypes.DenomUnit{
+				{
+					Denom:    metadata.Base,
+					Exponent: 0,
+				},
+			}
+		}
+		k.bankKeeper.SetDenomMetaData(ctx, metadata)
+
+		// update the mapping
+		if err := k.SetExternalContractForDenom(ctx, msg.Denom, common.HexToAddress(contract)); err != nil {
+			return err
+		}
+	} else {
+		if len(msg.Contract) == 0 {
+			// delete existing mapping
+			k.DeleteExternalContractForDenom(ctx, msg.Denom)
+		} else {
+			if !common.IsHexAddress(msg.Contract) {
+				return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
+			}
+			// update the mapping
+			contract := common.HexToAddress(msg.Contract)
+			if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
