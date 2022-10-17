@@ -124,7 +124,7 @@ import (
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
-
+	cronosappclient "github.com/crypto-org-chain/cronos/client"
 	cronosfile "github.com/crypto-org-chain/cronos/file"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tmdb"
@@ -378,10 +378,12 @@ func New(
 				panic(err)
 			}
 			versionDB := tmdb.NewStore(plainDB, historyDB, changesetDB)
-			directory := filepath.Join(rootDir, "data", "file_streamer")
+			// TODO: sync block data for grpc only mode
+			isLocal := cast.ToBool(appOpts.Get(cronosappclient.FlagIsLocal))
+			remoteUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteUrl))
 			watcher := cronosfile.NewBlockFileWatcher(func(blockNum int64) string {
-				return cronosfile.GetLocalDataFileName(directory, blockNum)
-			}, true)
+				return fmt.Sprintf("%s/%s", remoteUrl, cronosfile.DataFileName(blockNum))
+			}, isLocal)
 			watcher.Start(1, time.Microsecond)
 			go func() {
 				// max retry for temporary io error
