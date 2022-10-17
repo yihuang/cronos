@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
 	dbm "github.com/tendermint/tm-db"
 
@@ -282,21 +281,4 @@ func reversed[S ~[]E, E any](s S) []E {
 		r[i], r[j] = s[j], s[i]
 	}
 	return r
-}
-
-func TestDecodeData(t *testing.T, data []byte) (pairs []types.StoreKVPair) {
-	offset := 0
-	for offset < len(data) {
-		size, n := proto.DecodeVarint(data[offset:])
-		offset += n
-		pair := new(types.StoreKVPair)
-		err := proto.Unmarshal(data[offset:offset+int(size)], pair)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		pairs = append(pairs, *pair)
-		offset += int(size)
-	}
-	return
 }

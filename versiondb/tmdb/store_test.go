@@ -6,6 +6,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/crypto-org-chain/cronos/file"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/stretchr/testify/require"
@@ -34,7 +35,8 @@ func TestFeed(t *testing.T) {
 			_, err = buf.Write(bz)
 			require.NoError(t, err)
 		}
-		pairs := versiondb.TestDecodeData(t, buf.Bytes())
+		pairs, err := file.DecodeData(buf.Bytes())
+		require.NoError(t, err)
 		require.NotEmpty(t, pairs)
 		store := storeCreator()
 		require.NoError(t, store.PutAtVersion(v, pairs))

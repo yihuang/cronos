@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
@@ -22,6 +23,7 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server/api"
@@ -123,6 +125,7 @@ import (
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
+	cronosfile "github.com/crypto-org-chain/cronos/file"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tmdb"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
@@ -353,12 +356,11 @@ func New(
 		os.Exit(1)
 	}
 
-	// configure state listening capabilities using AppOptions
-	// we are doing nothing with the returned streamingServices and waitGroup in this case
 	streamers := cast.ToStringSlice(appOpts.Get("store.streamers"))
 	for _, streamerName := range streamers {
 		if streamerName == "versiondb" {
-			dataDir := filepath.Join(homePath, "data", "versiondb")
+			rootDir := cast.ToString(appOpts.Get(flags.FlagHome))
+			dataDir := filepath.Join(rootDir, "data", "versiondb")
 			if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
 				panic(err)
 			}
@@ -376,6 +378,35 @@ func New(
 				panic(err)
 			}
 			versionDB := tmdb.NewStore(plainDB, historyDB, changesetDB)
+			directory := filepath.Join(rootDir, "data", "file_streamer")
+			watcher := cronosfile.NewBlockFileWatcher(func(blockNum int64) string {
+				return cronosfile.GetLocalDataFileName(directory, blockNum)
+			}, true)
+			watcher.Start(1, time.Microsecond)
+			go func() {
+				// max retry for temporary io error
+				const maxRetry = 3
+				retry := 0
+				chData, chErr := watcher.SubscribeData(), watcher.SubscribeError()
+				for {
+					select {
+					case data := <-chData:
+						pairs, err := cronosfile.DecodeData(data.Data)
+						if err != nil {
+							panic(err)
+						}
+						retry = 0
+						fmt.Printf("mm-pairs: %+v\n", pairs)
+						versionDB.PutAtVersion(data.BlockNum, pairs)
+					case err := <-chErr:
+						retry++
+						if retry == maxRetry {
+							// data corrupt
+							panic(err)
+						}
+					}
+				}
+			}()
 
 			// default to exposing all
 			exposeStoreKeys := make([]storetypes.StoreKey, 0, len(keys))
@@ -388,7 +419,6 @@ func New(
 			qms.MountTransientStores(tkeys)
 			qms.MountMemoryStores(memKeys)
 			bApp.SetQueryMultiStore(qms)
-			break
 		}
 	}
 
