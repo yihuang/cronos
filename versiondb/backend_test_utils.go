@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
 	dbm "github.com/tendermint/tm-db"
 
@@ -16,37 +17,46 @@ var (
 	key1Subkey = []byte("key1/subkey")
 )
 
-func SetupTestDB(t *testing.T, store VersionStore) {
-	changeSets := [][]types.StoreKVPair{
-		{
+func MockStoreKVPairs(v int64) []types.StoreKVPair {
+	switch v {
+	case 0:
+		return []types.StoreKVPair{
 			{StoreKey: "evm", Key: []byte("delete-in-block2"), Value: []byte("1")},
 			{StoreKey: "evm", Key: []byte("re-add-in-block3"), Value: []byte("1")},
 			{StoreKey: "evm", Key: []byte("z-genesis-only"), Value: []byte("2")},
 			{StoreKey: "evm", Key: []byte("modify-in-block2"), Value: []byte("1")},
 			{StoreKey: "staking", Key: []byte("key1"), Value: []byte("value1")},
 			{StoreKey: "staking", Key: []byte("key1/subkey"), Value: []byte("value1")},
-		},
-		{
+		}
+	case 1:
+		return []types.StoreKVPair{
 			{StoreKey: "evm", Key: []byte("re-add-in-block3"), Delete: true},
 			{StoreKey: "evm", Key: []byte("add-in-block1"), Value: []byte("1")},
 			{StoreKey: "staking", Key: []byte("key1"), Delete: true},
-		},
-		{
+		}
+	case 2:
+		return []types.StoreKVPair{
 			{StoreKey: "evm", Key: []byte("add-in-block2"), Value: []byte("1")},
 			{StoreKey: "evm", Key: []byte("delete-in-block2"), Delete: true},
 			{StoreKey: "evm", Key: []byte("modify-in-block2"), Value: []byte("2")},
 			{StoreKey: "evm", Key: []byte("key2"), Delete: true},
 			{StoreKey: "staking", Key: []byte("key1"), Value: []byte("value2")},
-		},
-		{
+		}
+	case 3:
+		return []types.StoreKVPair{
 			{StoreKey: "evm", Key: []byte("re-add-in-block3"), Value: []byte("2")},
-		},
-		{
+		}
+	case 4:
+		return []types.StoreKVPair{
 			{StoreKey: "evm", Key: []byte("re-add-in-block3"), Delete: true},
-		},
+		}
 	}
-	for i, changeSet := range changeSets {
-		require.NoError(t, store.PutAtVersion(int64(i), changeSet))
+	return nil
+}
+
+func SetupTestDB(t *testing.T, store VersionStore) {
+	for i := 0; i < 5; i++ {
+		require.NoError(t, store.PutAtVersion(int64(i), MockStoreKVPairs(int64(i))))
 	}
 }
 
@@ -272,4 +282,21 @@ func reversed[S ~[]E, E any](s S) []E {
 		r[i], r[j] = s[j], s[i]
 	}
 	return r
+}
+
+func TestDecodeData(t *testing.T, data []byte) (pairs []types.StoreKVPair) {
+	offset := 0
+	for offset < len(data) {
+		size, n := proto.DecodeVarint(data[offset:])
+		offset += n
+		pair := new(types.StoreKVPair)
+		err := proto.Unmarshal(data[offset:offset+int(size)], pair)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		pairs = append(pairs, *pair)
+		offset += int(size)
+	}
+	return
 }
