@@ -378,13 +378,22 @@ func New(
 				panic(err)
 			}
 			versionDB := tmdb.NewStore(plainDB, historyDB, changesetDB)
+			latestVersion, err := versionDB.GetLatestVersion()
+			if err != nil {
+				panic(err)
+			}
+			startBlockNum := latestVersion + 1
+			if startBlockNum <= 0 {
+				startBlockNum = 1 // min 1
+			}
+			fmt.Printf("mm-startBlockNum: %+v, %+v\n", startBlockNum, err)
 			// TODO: sync block data for grpc only mode
 			isLocal := cast.ToBool(appOpts.Get(cronosappclient.FlagIsLocal))
 			remoteUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteUrl))
 			watcher := cronosfile.NewBlockFileWatcher(func(blockNum int64) string {
 				return fmt.Sprintf("%s/%s", remoteUrl, cronosfile.DataFileName(blockNum))
 			}, isLocal)
-			watcher.Start(1, time.Microsecond)
+			watcher.Start(startBlockNum, time.Microsecond)
 			go func() {
 				// max retry for temporary io error
 				const maxRetry = 3
