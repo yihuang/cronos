@@ -386,38 +386,42 @@ func New(
 			if startBlockNum <= 0 {
 				startBlockNum = 1 // min 1
 			}
-			fmt.Printf("mm-startBlockNum: %+v, %+v\n", startBlockNum, err)
-			// TODO: sync block data for grpc only mode
-			isLocal := cast.ToBool(appOpts.Get(cronosappclient.FlagIsLocal))
-			remoteUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteUrl))
-			watcher := cronosfile.NewBlockFileWatcher(func(blockNum int64) string {
-				return fmt.Sprintf("%s/%s", remoteUrl, cronosfile.DataFileName(blockNum))
-			}, isLocal)
-			watcher.Start(startBlockNum, time.Microsecond)
-			go func() {
-				// max retry for temporary io error
-				const maxRetry = 3
-				retry := 0
-				chData, chErr := watcher.SubscribeData(), watcher.SubscribeError()
-				for {
-					select {
-					case data := <-chData:
-						pairs, err := cronosfile.DecodeData(data.Data)
-						if err != nil {
-							panic(err)
-						}
-						retry = 0
-						fmt.Printf("mm-pairs: %+v\n", pairs)
-						versionDB.PutAtVersion(data.BlockNum, pairs)
-					case err := <-chErr:
-						retry++
-						if retry == maxRetry {
-							// data corrupt
-							panic(err)
+			directory := filepath.Join(rootDir, "data", "file_streamer")
+			isGrpcOnly := cast.ToBool(appOpts.Get(cronosappclient.FlagIsGrpcOnly))
+			fmt.Printf("mm-startBlockNum: %+v, %+v, %+v, %+v\n", startBlockNum, directory, isGrpcOnly, err)
+			if isGrpcOnly {
+				// TODO: sync block data for grpc only mode
+				isLocal := cast.ToBool(appOpts.Get(cronosappclient.FlagIsLocal))
+				remoteUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteUrl))
+				watcher := cronosfile.NewBlockFileWatcher(func(blockNum int64) string {
+					return fmt.Sprintf("%s/%s", remoteUrl, cronosfile.DataFileName(blockNum))
+				}, isLocal)
+				watcher.Start(startBlockNum, time.Microsecond)
+				go func() {
+					// max retry for temporary io error
+					const maxRetry = 3
+					retry := 0
+					chData, chErr := watcher.SubscribeData(), watcher.SubscribeError()
+					for {
+						select {
+						case data := <-chData:
+							pairs, err := cronosfile.DecodeData(data.Data)
+							if err != nil {
+								panic(err)
+							}
+							retry = 0
+							fmt.Printf("mm-pairs: %+v\n", len(pairs))
+							versionDB.PutAtVersion(data.BlockNum, pairs)
+						case err := <-chErr:
+							retry++
+							if retry == maxRetry {
+								// data corrupt
+								panic(err)
+							}
 						}
 					}
-				}
-			}()
+				}()
+			}
 
 			// default to exposing all
 			exposeStoreKeys := make([]storetypes.StoreKey, 0, len(keys))

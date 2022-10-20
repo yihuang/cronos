@@ -44,7 +44,7 @@ def network(tmp_path_factory):
     # replica
     path = tmp_path_factory.mktemp("cronos-replica")
     gen = setup_custom_cronos(
-        path, 26770, base / "replica.jsonnet"
+        path, 26770, base / "replica.jsonnet",
     )
     replica = next(gen)
     yield Network(primary, replica)
