@@ -9,13 +9,21 @@ import pytest
 from .network import Cronos, setup_custom_cronos
 from .utils import ADDRS, wait_for_port
 
+
 class Network(NamedTuple):
     primary: Cronos
     replica: Cronos
 
 
+class QuietServer(SimpleHTTPRequestHandler):
+    def __init__(self, dir: str, *args, **kwargs):
+        super().__init__(directory=dir, *args, **kwargs)
+
+    def log_message(self, format, *args):
+        pass
+
 @pytest.fixture(scope="module")
-def network(request, tmp_path_factory):
+def network(tmp_path_factory):
     base = Path(__file__).parent / "configs"
     # primary
     path = tmp_path_factory.mktemp("cronos-primary")
@@ -28,8 +36,7 @@ def network(request, tmp_path_factory):
     dir = path / "cronos_777-1/node0/data/file_streamer"
     print("dir: ", dir)
     port = 8080
-    handler = partial(SimpleHTTPRequestHandler, directory=dir)
-    httpd = HTTPServer(("localhost", port), handler)
+    httpd = HTTPServer(("localhost", port), partial(QuietServer, dir))
     thread = Thread(target=httpd.serve_forever)
     thread.setDaemon(True)
     thread.start()
@@ -50,7 +57,7 @@ def test_basic(network):
     community = ADDRS["community"]
     def print_balance():
         print(pw3.eth.get_balance(community))
-        # print(rw3.eth.get_balance(community))
+        print(rw3.eth.get_balance(community))
 
     print_balance()
     txhash = pw3.eth.send_transaction(
