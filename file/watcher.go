@@ -104,6 +104,7 @@ func (w *BlockFileWatcher) SubscribeError() <-chan error {
 
 func (w *BlockFileWatcher) fetch(blockNum int) error {
 	path := w.getFilePath(blockNum)
+	// TBC: skip if exist path to avoid dup download
 	data, err := w.downloader.GetData(path)
 	fmt.Printf("mm-fetch: %+v, %+v, %+v\n", blockNum, len(data), err)
 	if err != nil {
@@ -132,7 +133,6 @@ func (w *BlockFileWatcher) Start(
 	if w.chDone != nil {
 		return
 	}
-
 	w.chDone = make(chan bool)
 	go func() {
 		finishedBlockNums := make(map[int]bool)
@@ -144,28 +144,29 @@ func (w *BlockFileWatcher) Start(
 			default:
 				wg := new(sync.WaitGroup)
 				resultErrs := make([]error, w.concurrency)
-				for i := 1; i <= w.concurrency; i++ {
-					fmt.Println("mm-start: ", i)
-					if !finishedBlockNums[blockNum+i] {
+				for i := 0; i < w.concurrency; i++ {
+					nextBlockNum := blockNum + i
+					fmt.Println("mm-start: ", nextBlockNum)
+					if !finishedBlockNums[nextBlockNum] {
 						wg.Add(1)
-						go func(i int) {
-							err := w.fetch(blockNum + i)
-							resultErrs[i-1] = err
+						go func(nextBlockNum, i int) {
+							err := w.fetch(nextBlockNum)
+							resultErrs[i] = err
 							wg.Done()
-						}(i)
+						}(nextBlockNum, i)
 					}
 				}
 				wg.Wait()
 				errReached := false
 				currentBlockNum := blockNum
 				for i, err := range resultErrs {
-					b := currentBlockNum + i + 1
+					b := currentBlockNum + i
 					if err != nil {
 						errReached = true
 					} else {
 						finishedBlockNums[b] = true
 						if !errReached {
-							blockNum = b
+							blockNum = b + 1
 						}
 					}
 				}

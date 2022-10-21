@@ -389,6 +389,7 @@ func New(
 				if startBlockNum < 0 {
 					startBlockNum = 0
 				}
+				nextBlockNum := int(startBlockNum) + 1
 				directory := filepath.Join(rootDir, "data", "file_streamer")
 				isLocal := cast.ToBool(appOpts.Get(cronosappclient.FlagIsLocal))
 				remoteUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteUrl))
@@ -397,7 +398,7 @@ func New(
 				synchronizer := cronosfile.NewBlockFileWatcher(concurrency, func(blockNum int) string {
 					return fmt.Sprintf("%s/%s", remoteUrl, cronosfile.DataFileName(blockNum))
 				}, isLocal)
-				synchronizer.Start(int(startBlockNum), interval)
+				synchronizer.Start(nextBlockNum, interval)
 				go func() {
 					// max retry for temporary io error
 					maxRetry := concurrency * 2
@@ -428,7 +429,7 @@ func New(
 				streamer := cronosfile.NewBlockFileWatcher(1, func(blockNum int) string {
 					return cronosfile.GetLocalDataFileName(directory, blockNum)
 				}, true)
-				streamer.Start(int(startBlockNum), interval)
+				streamer.Start(nextBlockNum, interval)
 				go func() {
 					chData, chErr := streamer.SubscribeData(), streamer.SubscribeError()
 					for {

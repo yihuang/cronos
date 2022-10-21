@@ -21,21 +21,22 @@ func setupDirectory(t *testing.T, directory string) func(t *testing.T) {
 	}
 }
 
-func setupBlockFiles(directory string, start, end int64) {
+func setupBlockFiles(directory string, start, end int) {
 	for i := start; i <= end; i++ {
 		file := GetLocalDataFileName(directory, i)
 		os.WriteFile(file, []byte(fmt.Sprint("block", i)), 0644)
 	}
 }
 
-func start(watcher *BlockFileWatcher, endBlockNum int64) int64 {
-	watcher.Start(1, time.Microsecond)
-	counter := int64(0)
+func start(watcher *BlockFileWatcher, startBlockNum, endBlockNum int) int {
+	watcher.Start(startBlockNum, time.Microsecond)
+	counter := 0
 	for data := range watcher.SubscribeData() {
 		if data != nil && len(data.Data) > 0 {
 			counter++
 		}
 		if data.BlockNum == endBlockNum {
+			watcher.Close()
 			return counter
 		}
 	}
@@ -45,19 +46,19 @@ func start(watcher *BlockFileWatcher, endBlockNum int64) int64 {
 func TestFileWatcher(t *testing.T) {
 	directory := "tmp"
 	teardown := setupDirectory(t, directory)
-	startBlockNum := int64(1)
-	endBlockNum := int64(2)
-
+	startBlockNum := 1
+	endBlockNum := 2
+	concurrency := 1
 	defer teardown(t)
 
 	t.Run("when sync via local", func(t *testing.T) {
 		setupBlockFiles(directory, startBlockNum, endBlockNum)
-		watcher := NewBlockFileWatcher(func(blockNum int64) string {
+		watcher := NewBlockFileWatcher(concurrency, func(blockNum int) string {
 			return GetLocalDataFileName(directory, blockNum)
 		}, true)
-		total := start(watcher, endBlockNum)
+		total := start(watcher, startBlockNum, endBlockNum)
 		expected := endBlockNum - startBlockNum + 1
-		require.Equal(t, total, expected)
+		require.Equal(t, expected, total)
 	})
 
 	t.Run("when sync via http", func(t *testing.T) {
@@ -68,11 +69,11 @@ func TestFileWatcher(t *testing.T) {
 		go func() {
 			log.Fatal(http.ListenAndServe(":"+port, nil))
 		}()
-		watcher := NewBlockFileWatcher(func(blockNum int64) string {
+		watcher := NewBlockFileWatcher(concurrency, func(blockNum int) string {
 			return fmt.Sprintf("http://localhost:%s/%s", port, DataFileName(blockNum))
 		}, false)
-		total := start(watcher, endBlockNum)
+		total := start(watcher, startBlockNum, endBlockNum)
 		expected := endBlockNum - startBlockNum + 1
-		require.Equal(t, total, expected)
+		require.Equal(t, expected, total)
 	})
 }
