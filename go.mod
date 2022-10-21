@@ -10,7 +10,7 @@ require (
 	github.com/cosmos/gogoproto v1.4.3
 	github.com/cosmos/ibc-go/v5 v5.0.0
 	github.com/ethereum/go-ethereum v1.10.19
-	github.com/evmos/ethermint v0.6.1-0.20221003153722-491c3da7ebd7
+	github.com/evmos/ethermint v0.6.1-0.20221024154336-dca6d45cd75e
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
@@ -20,10 +20,10 @@ require (
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/tendermint/tendermint v0.34.24
 	github.com/tendermint/tm-db v0.6.7
-	google.golang.org/genproto v0.0.0-20221014213838-99cd37c6964a
+	google.golang.org/genproto v0.0.0-20221018160656-63c7b68cfc55
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8
 	gopkg.in/yaml.v2 v2.4.0
@@ -158,7 +158,7 @@ require (
 	github.com/rs/zerolog v1.27.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
-	github.com/spf13/afero v1.8.2 // indirect
+	github.com/spf13/afero v1.9.2 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.13.0 // indirect
 	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969 // indirect
@@ -182,7 +182,7 @@ require (
 	golang.org/x/sys v0.1.0 // indirect
 	golang.org/x/term v0.1.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
-	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
+	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.93.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

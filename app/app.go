@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
@@ -392,7 +391,7 @@ func New(
 				directory := filepath.Join(rootDir, "data", "file_streamer")
 				isLocal := cast.ToBool(appOpts.Get(cronosappclient.FlagIsLocal))
 				remoteUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteUrl))
-				concurrency := 21
+				concurrency := cast.ToInt(appOpts.Get(cronosappclient.FlagConcurrency))
 				watcher := cronosfile.NewBlockFileWatcher(concurrency, func(blockNum int) string {
 					return fmt.Sprintf("%s/%s", remoteUrl, cronosfile.DataFileName(blockNum))
 				}, isLocal, directory)
