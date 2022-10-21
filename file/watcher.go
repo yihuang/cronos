@@ -32,7 +32,10 @@ func (d *localFileDownloader) GetData(path string) ([]byte, error) {
 type httpFileDownloader struct{}
 
 func (d *httpFileDownloader) GetData(path string) ([]byte, error) {
-	resp, err := http.Get(path) //nolint
+	c := &http.Client{
+		Timeout: time.Minute,
+	}
+	resp, err := c.Get(path) //nolint
 	if err != nil {
 		return nil, err
 	}
@@ -49,28 +52,34 @@ func (d *httpFileDownloader) GetData(path string) ([]byte, error) {
 }
 
 type BlockData struct {
-	BlockNum int64
-	Data     []byte
+	BlockNum int
+	FilePath string
 }
 
 type BlockFileWatcher struct {
-	getFilePath func(blockNum int64) string
+	concurrency int
+	getFilePath func(blockNum int) string
 	downloader  fileDownloader
 	chData      chan *BlockData
 	chError     chan error
 	chDone      chan bool
 	startLock   *sync.Mutex
+	directory   string
 }
 
 func NewBlockFileWatcher(
-	getFilePath func(blockNum int64) string,
+	concurrency int,
+	getFilePath func(blockNum int) string,
 	isLocal bool,
+	directory string,
 ) *BlockFileWatcher {
 	w := &BlockFileWatcher{
+		concurrency: concurrency,
 		getFilePath: getFilePath,
 		chData:      make(chan *BlockData),
 		chError:     make(chan error),
 		startLock:   new(sync.Mutex),
+		directory:   directory,
 	}
 	if isLocal {
 		w.downloader = new(localFileDownloader)
@@ -80,11 +89,11 @@ func NewBlockFileWatcher(
 	return w
 }
 
-func DataFileName(blockNum int64) string {
+func DataFileName(blockNum int) string {
 	return fmt.Sprintf("block-%d-data", blockNum)
 }
 
-func GetLocalDataFileName(directory string, blockNum int64) string {
+func GetLocalDataFileName(directory string, blockNum int) string {
 	return fmt.Sprintf("%s/%s", directory, DataFileName(blockNum))
 }
 
@@ -96,8 +105,36 @@ func (w *BlockFileWatcher) SubscribeError() <-chan error {
 	return w.chError
 }
 
+func (w *BlockFileWatcher) fetch(blockNum int) (string, error) {
+	path := w.getFilePath(blockNum)
+	data, err := w.downloader.GetData(path)
+	fmt.Printf("mm-path: %+v, %+v, %+v\n", path, len(data), err)
+	if err != nil {
+		if err != errNotExist {
+			// avoid blocked by error when not subscribe
+			select {
+			case w.chError <- err:
+			default:
+			}
+		}
+		return "", err
+	}
+	w.chData <- &BlockData{
+		BlockNum: blockNum,
+		FilePath: path,
+	}
+	file := GetLocalDataFileName(w.directory, blockNum)
+	fmt.Printf("mm-file: %+v\n", file)
+	err = os.WriteFile(file, data, 0644)
+	if err != nil {
+		fmt.Printf("mm-writeErr: %+v\n", err)
+		return "", err
+	}
+	return file, nil
+}
+
 func (w *BlockFileWatcher) Start(
-	blockNum int64,
+	blockNum int,
 	interval time.Duration,
 ) {
 	w.startLock.Lock()
@@ -108,28 +145,42 @@ func (w *BlockFileWatcher) Start(
 
 	w.chDone = make(chan bool)
 	go func() {
+		finishedBlockNums := make(map[int]bool)
 		for {
 			select {
 			case <-w.chDone:
 				return
 
 			default:
-				path := w.getFilePath(blockNum)
-				data, err := w.downloader.GetData(path)
-				if err != nil {
-					if err != errNotExist {
-						// avoid blocked by error when not subscribe
-						select {
-						case w.chError <- err:
-						default:
+				wg := new(sync.WaitGroup)
+				resultFiles := make([]string, w.concurrency)
+				for i := 1; i <= w.concurrency; i++ {
+					fmt.Println("mm-start: ", i)
+					if !finishedBlockNums[blockNum+i] {
+						wg.Add(1)
+						go func(i int) {
+							f, err := w.fetch(blockNum + i)
+							if err == nil {
+								resultFiles[i-1] = f
+							}
+							wg.Done()
+						}(i)
+					}
+				}
+				wg.Wait()
+				errReached := false
+				finishedBlockNums = make(map[int]bool)
+				currentBlockNum := blockNum
+				for i, f := range resultFiles {
+					b := currentBlockNum + i + 1
+					if f == "" {
+						errReached = true
+					} else {
+						finishedBlockNums[b] = true
+						if !errReached {
+							blockNum = b
 						}
 					}
-				} else {
-					w.chData <- &BlockData{
-						BlockNum: blockNum,
-						Data:     data,
-					}
-					blockNum++
 				}
 				time.Sleep(interval)
 			}

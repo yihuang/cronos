@@ -382,36 +382,32 @@ func New(
 			if err != nil {
 				panic(err)
 			}
-			startBlockNum := latestVersion + 1
-			if startBlockNum <= 0 {
-				startBlockNum = 1 // min 1
+			startBlockNum := latestVersion
+			if startBlockNum < 0 {
+				startBlockNum = 0
 			}
-			directory := filepath.Join(rootDir, "data", "file_streamer")
 			isGrpcOnly := cast.ToBool(appOpts.Get(cronosappclient.FlagIsGrpcOnly))
-			fmt.Printf("mm-startBlockNum: %+v, %+v, %+v, %+v\n", startBlockNum, directory, isGrpcOnly, err)
+			fmt.Printf("mm-startBlockNum: %+v, %+v, %+v\n", startBlockNum, isGrpcOnly, err)
 			if isGrpcOnly {
-				// TODO: sync block data for grpc only mode
+				directory := filepath.Join(rootDir, "data", "file_streamer")
 				isLocal := cast.ToBool(appOpts.Get(cronosappclient.FlagIsLocal))
 				remoteUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteUrl))
-				watcher := cronosfile.NewBlockFileWatcher(func(blockNum int64) string {
+				concurrency := 21
+				watcher := cronosfile.NewBlockFileWatcher(concurrency, func(blockNum int) string {
 					return fmt.Sprintf("%s/%s", remoteUrl, cronosfile.DataFileName(blockNum))
-				}, isLocal)
-				watcher.Start(startBlockNum, time.Microsecond)
+				}, isLocal, directory)
 				go func() {
 					// max retry for temporary io error
-					const maxRetry = 3
+					maxRetry := concurrency * 2
 					retry := 0
 					chData, chErr := watcher.SubscribeData(), watcher.SubscribeError()
 					for {
 						select {
 						case data := <-chData:
-							pairs, err := cronosfile.DecodeData(data.Data)
-							if err != nil {
-								panic(err)
-							}
+							fmt.Printf("mm-file: %s\n", data.FilePath)
 							retry = 0
-							fmt.Printf("mm-pairs: %+v\n", len(pairs))
-							versionDB.PutAtVersion(data.BlockNum, pairs)
+							// fmt.Printf("mm-pairs: %+v\n", len(pairs))
+							// versionDB.PutAtVersion(int64(data.BlockNum), pairs)
 						case err := <-chErr:
 							retry++
 							if retry == maxRetry {
