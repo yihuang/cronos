@@ -53,7 +53,7 @@ func (d *httpFileDownloader) GetData(path string) ([]byte, error) {
 
 type BlockData struct {
 	BlockNum int
-	FilePath string
+	Data     []byte
 }
 
 type BlockFileWatcher struct {
@@ -64,14 +64,12 @@ type BlockFileWatcher struct {
 	chError     chan error
 	chDone      chan bool
 	startLock   *sync.Mutex
-	directory   string
 }
 
 func NewBlockFileWatcher(
 	concurrency int,
 	getFilePath func(blockNum int) string,
 	isLocal bool,
-	directory string,
 ) *BlockFileWatcher {
 	w := &BlockFileWatcher{
 		concurrency: concurrency,
@@ -79,7 +77,6 @@ func NewBlockFileWatcher(
 		chData:      make(chan *BlockData),
 		chError:     make(chan error),
 		startLock:   new(sync.Mutex),
-		directory:   directory,
 	}
 	if isLocal {
 		w.downloader = new(localFileDownloader)
@@ -105,10 +102,10 @@ func (w *BlockFileWatcher) SubscribeError() <-chan error {
 	return w.chError
 }
 
-func (w *BlockFileWatcher) fetch(blockNum int) (string, error) {
+func (w *BlockFileWatcher) fetch(blockNum int) error {
 	path := w.getFilePath(blockNum)
 	data, err := w.downloader.GetData(path)
-	fmt.Printf("mm-path: %+v, %+v, %+v\n", path, len(data), err)
+	fmt.Printf("mm-fetch: %+v, %+v, %+v\n", blockNum, len(data), err)
 	if err != nil {
 		if err != errNotExist {
 			// avoid blocked by error when not subscribe
@@ -117,20 +114,13 @@ func (w *BlockFileWatcher) fetch(blockNum int) (string, error) {
 			default:
 			}
 		}
-		return "", err
+		return err
 	}
 	w.chData <- &BlockData{
 		BlockNum: blockNum,
-		FilePath: path,
+		Data:     data,
 	}
-	file := GetLocalDataFileName(w.directory, blockNum)
-	fmt.Printf("mm-file: %+v\n", file)
-	err = os.WriteFile(file, data, 0644)
-	if err != nil {
-		fmt.Printf("mm-writeErr: %+v\n", err)
-		return "", err
-	}
-	return file, nil
+	return nil
 }
 
 func (w *BlockFileWatcher) Start(
@@ -153,33 +143,35 @@ func (w *BlockFileWatcher) Start(
 
 			default:
 				wg := new(sync.WaitGroup)
-				resultFiles := make([]string, w.concurrency)
+				resultErrs := make([]error, w.concurrency)
 				for i := 1; i <= w.concurrency; i++ {
 					fmt.Println("mm-start: ", i)
 					if !finishedBlockNums[blockNum+i] {
 						wg.Add(1)
 						go func(i int) {
-							f, err := w.fetch(blockNum + i)
-							if err == nil {
-								resultFiles[i-1] = f
-							}
+							err := w.fetch(blockNum + i)
+							resultErrs[i-1] = err
 							wg.Done()
 						}(i)
 					}
 				}
 				wg.Wait()
 				errReached := false
-				finishedBlockNums = make(map[int]bool)
 				currentBlockNum := blockNum
-				for i, f := range resultFiles {
+				for i, err := range resultErrs {
 					b := currentBlockNum + i + 1
-					if f == "" {
+					if err != nil {
 						errReached = true
 					} else {
 						finishedBlockNums[b] = true
 						if !errReached {
 							blockNum = b
 						}
+					}
+				}
+				for k := range finishedBlockNums {
+					if k <= blockNum {
+						delete(finishedBlockNums, k)
 					}
 				}
 				time.Sleep(interval)

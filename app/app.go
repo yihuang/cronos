@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
@@ -377,33 +378,38 @@ func New(
 				panic(err)
 			}
 			versionDB := tmdb.NewStore(plainDB, historyDB, changesetDB)
-			latestVersion, err := versionDB.GetLatestVersion()
-			if err != nil {
-				panic(err)
-			}
-			startBlockNum := latestVersion
-			if startBlockNum < 0 {
-				startBlockNum = 0
-			}
 			isGrpcOnly := cast.ToBool(appOpts.Get(cronosappclient.FlagIsGrpcOnly))
-			fmt.Printf("mm-startBlockNum: %+v, %+v, %+v\n", startBlockNum, isGrpcOnly, err)
 			if isGrpcOnly {
+				latestVersion, err := versionDB.GetLatestVersion()
+				fmt.Printf("mm-latestVersion: %+v\n", latestVersion)
+				if err != nil {
+					panic(err)
+				}
+				startBlockNum := latestVersion
+				if startBlockNum < 0 {
+					startBlockNum = 0
+				}
 				directory := filepath.Join(rootDir, "data", "file_streamer")
 				isLocal := cast.ToBool(appOpts.Get(cronosappclient.FlagIsLocal))
 				remoteUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteUrl))
 				concurrency := cast.ToInt(appOpts.Get(cronosappclient.FlagConcurrency))
-				watcher := cronosfile.NewBlockFileWatcher(concurrency, func(blockNum int) string {
+				synchronizer := cronosfile.NewBlockFileWatcher(concurrency, func(blockNum int) string {
 					return fmt.Sprintf("%s/%s", remoteUrl, cronosfile.DataFileName(blockNum))
-				}, isLocal, directory)
+				}, isLocal)
+				synchronizer.Start(int(startBlockNum), time.Microsecond)
 				go func() {
 					// max retry for temporary io error
 					maxRetry := concurrency * 2
 					retry := 0
-					chData, chErr := watcher.SubscribeData(), watcher.SubscribeError()
+					chData, chErr := synchronizer.SubscribeData(), synchronizer.SubscribeError()
 					for {
 						select {
 						case data := <-chData:
-							fmt.Printf("mm-file: %s\n", data.FilePath)
+							file := cronosfile.GetLocalDataFileName(directory, data.BlockNum)
+							fmt.Printf("mm-file: %+v\n", file)
+							if err := os.WriteFile(file, data.Data, 0644); err != nil {
+								panic(err)
+							}
 							retry = 0
 							// fmt.Printf("mm-pairs: %+v\n", len(pairs))
 							// versionDB.PutAtVersion(int64(data.BlockNum), pairs)
@@ -413,6 +419,28 @@ func New(
 								// data corrupt
 								panic(err)
 							}
+						}
+					}
+				}()
+
+				// streamer write the file blk by blk with concurrency 1
+				streamer := cronosfile.NewBlockFileWatcher(1, func(blockNum int) string {
+					return cronosfile.GetLocalDataFileName(directory, blockNum)
+				}, true)
+				streamer.Start(int(startBlockNum), time.Microsecond)
+				go func() {
+					chData, chErr := streamer.SubscribeData(), streamer.SubscribeError()
+					for {
+						select {
+						case data := <-chData:
+							pairs, err := cronosfile.DecodeData(data.Data)
+							fmt.Printf("mm-pairs: %+v, %+v\n", len(pairs), err)
+							if err == nil {
+								versionDB.PutAtVersion(int64(data.BlockNum), pairs)
+							}
+						case err := <-chErr:
+							// fail read
+							panic(err)
 						}
 					}
 				}()
