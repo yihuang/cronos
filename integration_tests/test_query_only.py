@@ -1,3 +1,7 @@
+import os
+import signal
+import subprocess
+import time
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
@@ -5,8 +9,10 @@ from threading import Thread
 from typing import NamedTuple
 
 import pytest
+import requests
+from pystarport import ports
 
-from .network import Cronos, setup_custom_cronos
+from .network import Cronos
 from .utils import ADDRS, wait_for_port
 
 
@@ -22,18 +28,38 @@ class QuietServer(SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
 
+
+def exec(config, path, base_port):
+    cmd = [
+        "pystarport",
+        "init",
+        "--config",
+        config,
+        "--data",
+        path,
+        "--base_port",
+        str(base_port),
+        "--no_remove",
+    ]
+    print(*cmd)
+    subprocess.run(cmd, check=True)
+    return subprocess.Popen(
+        ["pystarport", "start", "--data", path, "--quiet"],
+        preexec_fn=os.setsid,
+    )
+
+
 @pytest.fixture(scope="module")
 def network(tmp_path_factory):
+    chain_id = "cronos_777-1"
     base = Path(__file__).parent / "configs"
     # primary
-    path = tmp_path_factory.mktemp("cronos-primary")
-    gen = setup_custom_cronos(
-        path, 26750, base / "primary.jsonnet"
-    )
-    primary = next(gen)
-    print("primary path:", path)
+    path0 = tmp_path_factory.mktemp("cronos-primary")
+    base_port0 = 26750
+    procs = [exec(base / "primary.jsonnet", path0, base_port0)]
+
     # http server
-    dir = path / "cronos_777-1/node0/data/file_streamer"
+    dir = path0 / f"{chain_id}/node0/data/file_streamer"
     print("dir: ", dir)
     port = 8080
     httpd = HTTPServer(("localhost", port), partial(QuietServer, dir))
@@ -41,32 +67,58 @@ def network(tmp_path_factory):
     thread.setDaemon(True)
     thread.start()
     wait_for_port(port)
+
     # replica
-    path = tmp_path_factory.mktemp("cronos-replica")
-    gen = setup_custom_cronos(
-        path, 26770, base / "replica.jsonnet",
-    )
-    replica = next(gen)
-    yield Network(primary, replica)
+    path1 = tmp_path_factory.mktemp("cronos-replica")
+    base_port1 = 26770
+    procs.append(exec(base / "replica.jsonnet", path1, base_port1))
+    try:
+        wait_for_port(ports.evmrpc_port(base_port0))
+        wait_for_port(ports.grpc_port(base_port1))
+        yield Network(Cronos(path0 / chain_id), Cronos(path1 / chain_id))
+    finally:
+        for proc in procs:
+            print("killing:", proc.pid)
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            proc.wait()
+            print("killed:", proc.pid)
+
+
+def grpc_call(p, address):
+    url = f"http://127.0.0.1:{p}/cosmos/bank/v1beta1/balances/{address}"
+    response = requests.get(url)
+    if not response.ok:
+        raise Exception(
+            f"response code: {response.status_code}, "
+            f"{response.reason}, {response.json()}"
+        )
+    result = response.json()
+    if result.get("code"):
+        raise Exception(result["raw_log"])
+    return result["balances"]
 
 
 def test_basic(network):
     pw3 = network.primary.w3
-    rw3 = network.replica.w3
-    validator = ADDRS["validator"]
-    community = ADDRS["community"]
+    pcli = network.primary.cosmos_cli()
+    validator = pcli.address("validator")
+    community = pcli.address("community")
+    print("address: ", validator, community)
+    replica_grpc_port = ports.api_port(network.replica.base_port(0))
+
     def print_balance():
-        print(pw3.eth.get_balance(community))
-        print(rw3.eth.get_balance(community))
+        print("primary", pcli.balances(community), pcli.balances(validator))
+        print("replica", grpc_call(replica_grpc_port, community), grpc_call(replica_grpc_port, validator))
 
     print_balance()
     txhash = pw3.eth.send_transaction(
         {
-            "from": validator,
-            "to": community,
+            "from": ADDRS["validator"],
+            "to": ADDRS["community"],
             "value": 1000,
         }
     )
     receipt = pw3.eth.wait_for_transaction_receipt(txhash)
     assert receipt.status == 1
+    time.sleep(1)
     print_balance()

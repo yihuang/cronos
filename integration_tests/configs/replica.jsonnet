@@ -9,7 +9,7 @@ config {
       'is-local': false,
       'remote-url': 'http://localhost:8080',
       'grpc-only': true,
-      'concurrency': 4,
+      'concurrency': 1,
     },
   },
 }
