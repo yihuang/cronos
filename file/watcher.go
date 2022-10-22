@@ -1,8 +1,10 @@
 package file
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -104,6 +106,19 @@ func (w *BlockFileWatcher) SubscribeError() <-chan error {
 
 func (w *BlockFileWatcher) fetch(blockNum int) error {
 	path := w.getFilePath(blockNum)
+	f, err := os.Open(path)
+	if err == nil {
+		defer f.Close()
+		var bytes [8]byte
+		if _, err = io.ReadFull(f, bytes[:]); err == nil {
+			size := binary.BigEndian.Uint64(bytes[:])
+			if info, err := f.Stat(); err == nil && size+8 == uint64(info.Size()) {
+				return nil
+			}
+		}
+		f.Close()
+	}
+
 	// TBC: skip if exist path to avoid dup download
 	data, err := w.downloader.GetData(path)
 	fmt.Printf("mm-fetch: %+v, %+v, %+v\n", blockNum, len(data), err)
