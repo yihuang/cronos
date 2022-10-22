@@ -77,6 +77,7 @@ def network(tmp_path_factory):
         wait_for_port(ports.grpc_port(base_port1))
         yield Network(Cronos(path0 / chain_id), Cronos(path1 / chain_id))
     finally:
+        httpd.shutdown()
         for proc in procs:
             print("killing:", proc.pid)
             os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
