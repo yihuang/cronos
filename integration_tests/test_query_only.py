@@ -73,6 +73,7 @@ def network(tmp_path_factory):
     procs.append(exec(base / "replica.jsonnet", path1, base_port1))
     try:
         wait_for_port(ports.evmrpc_port(base_port0))
+        wait_for_port(ports.evmrpc_ws_port(base_port0))
         wait_for_port(ports.grpc_port(base_port1))
         yield Network(Cronos(path0 / chain_id), Cronos(path1 / chain_id))
     finally:
@@ -87,10 +88,12 @@ def grpc_call(p, address):
     url = f"http://127.0.0.1:{p}/cosmos/bank/v1beta1/balances/{address}"
     response = requests.get(url)
     if not response.ok:
-        raise Exception(
-            f"response code: {response.status_code}, "
-            f"{response.reason}, {response.json()}"
-        )
+        # retry until file get synced
+        return -1
+        # raise Exception(
+        #     f"response code: {response.status_code}, "
+        #     f"{response.reason}, {response.json()}"
+        # )
     result = response.json()
     if result.get("code"):
         raise Exception(result["raw_log"])

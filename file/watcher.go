@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -60,6 +61,7 @@ type BlockData struct {
 
 type BlockFileWatcher struct {
 	concurrency int
+	maxBlockNum int64
 	getFilePath func(blockNum int) string
 	downloader  fileDownloader
 	chData      chan *BlockData
@@ -70,11 +72,13 @@ type BlockFileWatcher struct {
 
 func NewBlockFileWatcher(
 	concurrency int,
+	maxBlockNum int,
 	getFilePath func(blockNum int) string,
 	isLocal bool,
 ) *BlockFileWatcher {
 	w := &BlockFileWatcher{
 		concurrency: concurrency,
+		maxBlockNum: int64(maxBlockNum),
 		getFilePath: getFilePath,
 		chData:      make(chan *BlockData),
 		chError:     make(chan error),
@@ -104,11 +108,16 @@ func (w *BlockFileWatcher) SubscribeError() <-chan error {
 	return w.chError
 }
 
+func (w *BlockFileWatcher) SetMaxBlockNum(num int) {
+	atomic.StoreInt64(&w.maxBlockNum, int64(num))
+}
+
 func (w *BlockFileWatcher) fetch(blockNum int) error {
 	path := w.getFilePath(blockNum)
 	f, err := os.Open(path)
 	if err == nil {
 		defer f.Close()
+		// valid 1st 8 bytes for downloaded file
 		var bytes [8]byte
 		if _, err = io.ReadFull(f, bytes[:]); err == nil {
 			size := binary.BigEndian.Uint64(bytes[:])
@@ -119,7 +128,7 @@ func (w *BlockFileWatcher) fetch(blockNum int) error {
 		f.Close()
 	}
 
-	// TBC: skip if exist path to avoid dup download
+	// download if file not exist
 	data, err := w.downloader.GetData(path)
 	fmt.Printf("mm-fetch: %+v, %+v, %+v\n", blockNum, len(data), err)
 	if err != nil {
@@ -158,8 +167,18 @@ func (w *BlockFileWatcher) Start(
 
 			default:
 				wg := new(sync.WaitGroup)
-				resultErrs := make([]error, w.concurrency)
-				for i := 0; i < w.concurrency; i++ {
+				currentBlockNum := blockNum
+				maxBlockNum := int(atomic.LoadInt64(&w.maxBlockNum))
+				concurrency := w.concurrency
+				if diff := maxBlockNum - currentBlockNum; diff < concurrency {
+					if diff <= 0 {
+						time.Sleep(interval)
+						break
+					}
+					concurrency = diff
+				}
+				resultErrs := make([]error, concurrency)
+				for i := 0; i < concurrency; i++ {
 					nextBlockNum := blockNum + i
 					fmt.Println("mm-start: ", nextBlockNum)
 					if !finishedBlockNums[nextBlockNum] {
@@ -173,7 +192,6 @@ func (w *BlockFileWatcher) Start(
 				}
 				wg.Wait()
 				errReached := false
-				currentBlockNum := blockNum
 				for i, err := range resultErrs {
 					b := currentBlockNum + i
 					if err != nil {

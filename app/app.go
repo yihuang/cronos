@@ -12,6 +12,7 @@ import (
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
 
 	"github.com/cosmos/cosmos-sdk/client"
+
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/gorilla/mux"
@@ -132,6 +133,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 
 	// unnamed import of statik for swagger UI support
 	_ "github.com/crypto-org-chain/cronos/client/docs/statik"
@@ -390,43 +392,13 @@ func New(
 					startBlockNum = 0
 				}
 				nextBlockNum := int(startBlockNum) + 1
-				directory := filepath.Join(rootDir, "data", "file_streamer")
-				isLocal := cast.ToBool(appOpts.Get(cronosappclient.FlagIsLocal))
-				remoteUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteUrl))
-				concurrency := cast.ToInt(appOpts.Get(cronosappclient.FlagConcurrency))
+				// TODO: maxBlockNum init from primary node
+				maxBlockNum := 0
 				interval := time.Second
-				synchronizer := cronosfile.NewBlockFileWatcher(concurrency, func(blockNum int) string {
-					return fmt.Sprintf("%s/%s", remoteUrl, cronosfile.DataFileName(blockNum))
-				}, isLocal)
-				synchronizer.Start(nextBlockNum, interval)
-				go func() {
-					// max retry for temporary io error
-					maxRetry := concurrency * 2
-					retry := 0
-					chData, chErr := synchronizer.SubscribeData(), synchronizer.SubscribeError()
-					for {
-						select {
-						case data := <-chData:
-							file := cronosfile.GetLocalDataFileName(directory, data.BlockNum)
-							fmt.Printf("mm-file: %+v\n", file)
-							if err := os.WriteFile(file, data.Data, 0644); err != nil {
-								panic(err)
-							}
-							retry = 0
-							// fmt.Printf("mm-pairs: %+v\n", len(pairs))
-							// versionDB.PutAtVersion(int64(data.BlockNum), pairs)
-						case err := <-chErr:
-							retry++
-							if retry == maxRetry {
-								// data corrupt
-								panic(err)
-							}
-						}
-					}
-				}()
 
+				directory := filepath.Join(rootDir, "data", "file_streamer")
 				// streamer write the file blk by blk with concurrency 1
-				streamer := cronosfile.NewBlockFileWatcher(1, func(blockNum int) string {
+				streamer := cronosfile.NewBlockFileWatcher(1, maxBlockNum, func(blockNum int) string {
 					return cronosfile.GetLocalDataFileName(directory, blockNum)
 				}, true)
 				streamer.Start(nextBlockNum, interval)
@@ -442,9 +414,87 @@ func New(
 							}
 						case err := <-chErr:
 							// fail read
+							fmt.Println("mm-fail-read-panic")
 							panic(err)
 						}
 					}
+				}()
+
+				isLocal := cast.ToBool(appOpts.Get(cronosappclient.FlagIsLocal))
+				remoteUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteUrl))
+				concurrency := cast.ToInt(appOpts.Get(cronosappclient.FlagConcurrency))
+				synchronizer := cronosfile.NewBlockFileWatcher(concurrency, maxBlockNum, func(blockNum int) string {
+					return fmt.Sprintf("%s/%s", remoteUrl, cronosfile.DataFileName(blockNum))
+				}, isLocal)
+				synchronizer.Start(nextBlockNum, interval)
+				go func() {
+					// max retry for temporary io error
+					maxRetry := concurrency * 2
+					retry := 0
+					chData, chErr := synchronizer.SubscribeData(), synchronizer.SubscribeError()
+					for {
+						select {
+						case data := <-chData:
+							file := cronosfile.GetLocalDataFileName(directory, data.BlockNum)
+							fmt.Printf("mm-data.BlockNum: %+v\n", data.BlockNum)
+							if err := os.WriteFile(file, data.Data, 0644); err != nil {
+								fmt.Println("mm-WriteFile-panic")
+								panic(err)
+							}
+							retry = 0
+							fmt.Println("mm-reset-retry")
+							if data.BlockNum > maxBlockNum {
+								streamer.SetMaxBlockNum(data.BlockNum)
+							}
+						case err := <-chErr:
+							retry++
+							fmt.Println("mm-retry", retry)
+							if retry == maxRetry {
+								// data corrupt
+								fmt.Println("mm-data-corrupt-panic")
+								panic(err)
+							}
+						}
+					}
+				}()
+
+				go func() {
+					maxRetry := 50
+					for i := 0; i < maxRetry; i++ {
+						if i > 0 {
+							time.Sleep(time.Second)
+						}
+						// TODO: config remote tm
+						wsClient := cronosappclient.NewWebsocketClient("ws://localhost:26767/websocket")
+						chResult, err := wsClient.Subscribe()
+						if err != nil {
+							fmt.Printf("mm-subscribed[%+v]: %+v\n", i, err)
+							continue
+						}
+						fmt.Println("subscribing")
+						err = wsClient.Send("subscribe", []string{
+							"tm.event='NewBlockHeader'",
+						})
+						if err != nil {
+							fmt.Printf("mm-subscribed: %+v\n", err)
+							continue
+						}
+						i = 0
+						fmt.Println("subscribed ws")
+						for res := range chResult {
+							if res == nil || res.Data == nil {
+								continue
+							}
+							data, ok := res.Data.(tmtypes.EventDataNewBlockHeader)
+							if !ok {
+								continue
+							}
+							blockNum := int(data.Header.Height)
+							fmt.Printf("mm-set-max-blk: %+v\n", blockNum)
+							synchronizer.SetMaxBlockNum(blockNum)
+						}
+					}
+					panic(fmt.Sprintf("max retries %d reached", maxRetry))
 				}()
 			}
 
