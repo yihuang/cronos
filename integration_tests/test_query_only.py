@@ -1,7 +1,6 @@
 import os
 import signal
 import subprocess
-import time
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
@@ -13,7 +12,7 @@ import requests
 from pystarport import ports
 
 from .network import Cronos
-from .utils import ADDRS, wait_for_port
+from .utils import ADDRS, wait_for_fn, wait_for_port
 
 
 class Network(NamedTuple):
@@ -79,7 +78,6 @@ def network(tmp_path_factory):
     finally:
         httpd.shutdown()
         for proc in procs:
-            print("killing:", proc.pid)
             os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
             proc.wait()
             print("killed:", proc.pid)
@@ -107,11 +105,16 @@ def test_basic(network):
     print("address: ", validator, community)
     replica_grpc_port = ports.api_port(network.replica.base_port(0))
 
-    def print_balance():
-        print("primary", pcli.balances(community), pcli.balances(validator))
-        print("replica", grpc_call(replica_grpc_port, community), grpc_call(replica_grpc_port, validator))
+    def check_balances():
+        pbalances = [pcli.balances(community), pcli.balances(validator)]
+        rbalances = [
+            grpc_call(replica_grpc_port, community),
+            grpc_call(replica_grpc_port, validator),
+        ]
+        print("primary", pbalances)
+        print("replica", rbalances)
+        return pbalances == rbalances
 
-    print_balance()
     txhash = pw3.eth.send_transaction(
         {
             "from": ADDRS["validator"],
@@ -121,5 +124,4 @@ def test_basic(network):
     )
     receipt = pw3.eth.wait_for_transaction_receipt(txhash)
     assert receipt.status == 1
-    time.sleep(1)
-    print_balance()
+    wait_for_fn("cross-check-balances", check_balances, timeout=50)
