@@ -1,4 +1,4 @@
-package file
+package client
 
 import (
 	"github.com/cosmos/cosmos-sdk/store/types"

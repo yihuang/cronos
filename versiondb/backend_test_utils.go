@@ -12,7 +12,9 @@ import (
 
 var (
 	key1       = []byte("key1")
-	value1     = []byte("value1")
+	key2       = []byte("key2")
+	value1     = []byte("1")
+	value2     = []byte("2")
 	key1Subkey = []byte("key1/subkey")
 )
 
@@ -20,30 +22,30 @@ func MockStoreKVPairs(v int64) []types.StoreKVPair {
 	switch v {
 	case 0:
 		return []types.StoreKVPair{
-			{StoreKey: "evm", Key: []byte("delete-in-block2"), Value: []byte("1")},
-			{StoreKey: "evm", Key: []byte("re-add-in-block3"), Value: []byte("1")},
-			{StoreKey: "evm", Key: []byte("z-genesis-only"), Value: []byte("2")},
-			{StoreKey: "evm", Key: []byte("modify-in-block2"), Value: []byte("1")},
-			{StoreKey: "staking", Key: []byte("key1"), Value: []byte("value1")},
-			{StoreKey: "staking", Key: []byte("key1/subkey"), Value: []byte("value1")},
+			{StoreKey: "evm", Key: []byte("delete-in-block2"), Value: value1},
+			{StoreKey: "evm", Key: []byte("re-add-in-block3"), Value: value1},
+			{StoreKey: "evm", Key: []byte("z-genesis-only"), Value: value2},
+			{StoreKey: "evm", Key: []byte("modify-in-block2"), Value: value1},
+			{StoreKey: "staking", Key: key1, Value: value1},
+			{StoreKey: "staking", Key: key1Subkey, Value: value1},
 		}
 	case 1:
 		return []types.StoreKVPair{
 			{StoreKey: "evm", Key: []byte("re-add-in-block3"), Delete: true},
-			{StoreKey: "evm", Key: []byte("add-in-block1"), Value: []byte("1")},
-			{StoreKey: "staking", Key: []byte("key1"), Delete: true},
+			{StoreKey: "evm", Key: []byte("add-in-block1"), Value: value1},
+			{StoreKey: "staking", Key: key1, Delete: true},
 		}
 	case 2:
 		return []types.StoreKVPair{
-			{StoreKey: "evm", Key: []byte("add-in-block2"), Value: []byte("1")},
+			{StoreKey: "evm", Key: []byte("add-in-block2"), Value: value1},
 			{StoreKey: "evm", Key: []byte("delete-in-block2"), Delete: true},
-			{StoreKey: "evm", Key: []byte("modify-in-block2"), Value: []byte("2")},
-			{StoreKey: "evm", Key: []byte("key2"), Delete: true},
-			{StoreKey: "staking", Key: []byte("key1"), Value: []byte("value2")},
+			{StoreKey: "evm", Key: []byte("modify-in-block2"), Value: value2},
+			{StoreKey: "evm", Key: key2, Delete: true},
+			{StoreKey: "staking", Key: key1, Value: value2},
 		}
 	case 3:
 		return []types.StoreKVPair{
-			{StoreKey: "evm", Key: []byte("re-add-in-block3"), Value: []byte("2")},
+			{StoreKey: "evm", Key: []byte("re-add-in-block3"), Value: value2},
 		}
 	case 4:
 		return []types.StoreKVPair{
@@ -79,7 +81,7 @@ func testBasics(t *testing.T, store VersionStore) {
 
 	value, err := store.GetAtVersion("evm", []byte("z-genesis-only"), nil)
 	require.NoError(t, err)
-	require.Equal(t, value, []byte("2"))
+	require.Equal(t, value, value2)
 
 	v = 4
 	ok, err := store.HasAtVersion("evm", []byte("z-genesis-only"), &v)
@@ -87,7 +89,7 @@ func testBasics(t *testing.T, store VersionStore) {
 	require.True(t, ok)
 	value, err = store.GetAtVersion("evm", []byte("z-genesis-only"), &v)
 	require.NoError(t, err)
-	require.Equal(t, value, []byte("2"))
+	require.Equal(t, value, value2)
 
 	value, err = store.GetAtVersion("evm", []byte("re-add-in-block3"), nil)
 	require.NoError(t, err)
@@ -99,12 +101,12 @@ func testBasics(t *testing.T, store VersionStore) {
 
 	value, err = store.GetAtVersion("staking", key1, nil)
 	require.NoError(t, err)
-	require.Equal(t, value, []byte("value2"))
+	require.Equal(t, value, value2)
 
 	v = 2
 	value, err = store.GetAtVersion("staking", key1, &v)
 	require.NoError(t, err)
-	require.Equal(t, value, []byte("value2"))
+	require.Equal(t, value, value2)
 
 	ok, err = store.HasAtVersion("staking", key1, &v)
 	require.NoError(t, err)
@@ -113,7 +115,7 @@ func testBasics(t *testing.T, store VersionStore) {
 	v = 0
 	value, err = store.GetAtVersion("staking", key1, &v)
 	require.NoError(t, err)
-	require.Equal(t, value, []byte("value1"))
+	require.Equal(t, value, value1)
 
 	v = 1
 	value, err = store.GetAtVersion("staking", key1, &v)
@@ -143,35 +145,35 @@ func testIterator(t *testing.T, store VersionStore) {
 
 	expItems := [][]KVPair{
 		{
-			KVPair{[]byte("delete-in-block2"), []byte("1")},
-			KVPair{[]byte("modify-in-block2"), []byte("1")},
-			KVPair{[]byte("re-add-in-block3"), []byte("1")},
-			KVPair{[]byte("z-genesis-only"), []byte("2")},
+			KVPair{[]byte("delete-in-block2"), value1},
+			KVPair{[]byte("modify-in-block2"), value1},
+			KVPair{[]byte("re-add-in-block3"), value1},
+			KVPair{[]byte("z-genesis-only"), value2},
 		},
 		{
-			KVPair{[]byte("add-in-block1"), []byte("1")},
-			KVPair{[]byte("delete-in-block2"), []byte("1")},
-			KVPair{[]byte("modify-in-block2"), []byte("1")},
-			KVPair{[]byte("z-genesis-only"), []byte("2")},
+			KVPair{[]byte("add-in-block1"), value1},
+			KVPair{[]byte("delete-in-block2"), value1},
+			KVPair{[]byte("modify-in-block2"), value1},
+			KVPair{[]byte("z-genesis-only"), value2},
 		},
 		{
-			KVPair{[]byte("add-in-block1"), []byte("1")},
-			KVPair{[]byte("add-in-block2"), []byte("1")},
-			KVPair{[]byte("modify-in-block2"), []byte("2")},
-			KVPair{[]byte("z-genesis-only"), []byte("2")},
+			KVPair{[]byte("add-in-block1"), value1},
+			KVPair{[]byte("add-in-block2"), value1},
+			KVPair{[]byte("modify-in-block2"), value2},
+			KVPair{[]byte("z-genesis-only"), value2},
 		},
 		{
-			KVPair{[]byte("add-in-block1"), []byte("1")},
-			KVPair{[]byte("add-in-block2"), []byte("1")},
-			KVPair{[]byte("modify-in-block2"), []byte("2")},
-			KVPair{[]byte("re-add-in-block3"), []byte("2")},
-			KVPair{[]byte("z-genesis-only"), []byte("2")},
+			KVPair{[]byte("add-in-block1"), value1},
+			KVPair{[]byte("add-in-block2"), value1},
+			KVPair{[]byte("modify-in-block2"), value2},
+			KVPair{[]byte("re-add-in-block3"), value2},
+			KVPair{[]byte("z-genesis-only"), value2},
 		},
 		{
-			KVPair{[]byte("add-in-block1"), []byte("1")},
-			KVPair{[]byte("add-in-block2"), []byte("1")},
-			KVPair{[]byte("modify-in-block2"), []byte("2")},
-			KVPair{[]byte("z-genesis-only"), []byte("2")},
+			KVPair{[]byte("add-in-block1"), value1},
+			KVPair{[]byte("add-in-block2"), value1},
+			KVPair{[]byte("modify-in-block2"), value2},
+			KVPair{[]byte("z-genesis-only"), value2},
 		},
 	}
 	for i, exp := range expItems {

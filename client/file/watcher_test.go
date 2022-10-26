@@ -53,7 +53,7 @@ func TestFileWatcher(t *testing.T) {
 
 	t.Run("when sync via local", func(t *testing.T) {
 		setupBlockFiles(directory, startBlockNum, endBlockNum)
-		watcher := NewBlockFileWatcher(concurrency, func(blockNum int) string {
+		watcher := NewBlockFileWatcher(concurrency, endBlockNum+1, func(blockNum int) string {
 			return GetLocalDataFileName(directory, blockNum)
 		}, true)
 		total := start(watcher, startBlockNum, endBlockNum)
@@ -69,7 +69,7 @@ func TestFileWatcher(t *testing.T) {
 		go func() {
 			log.Fatal(http.ListenAndServe(":"+port, nil))
 		}()
-		watcher := NewBlockFileWatcher(concurrency, func(blockNum int) string {
+		watcher := NewBlockFileWatcher(concurrency, endBlockNum+1, func(blockNum int) string {
 			return fmt.Sprintf("http://localhost:%s/%s", port, DataFileName(blockNum))
 		}, false)
 		total := start(watcher, startBlockNum, endBlockNum)

@@ -92,7 +92,7 @@ func Sync(versionDB *tmdb.Store, remoteGrpcUrl, remoteUrl, remoteWsUrl, rootDir 
 		for {
 			select {
 			case data := <-chData:
-				pairs, err := DecodeData(data.Data)
+				pairs, err := client.DecodeData(data.Data)
 				fmt.Printf("mm-pairs: %+v, %+v\n", len(pairs), err)
 				if err == nil {
 					versionDB.PutAtVersion(int64(data.BlockNum), pairs)
