@@ -51,14 +51,21 @@ func Sync(versionDB *tmdb.Store, remoteGrpcUrl, remoteUrl, remoteWsUrl, rootDir 
 			continue
 		}
 
-		bz, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
+		var bz []byte
+		if result := func() bool {
+			defer resp.Body.Close()
+			bz, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return false
+			}
+			if resp.StatusCode != http.StatusOK {
+				return false
+			}
+			return true
+		}(); !result {
 			continue
 		}
-		if resp.StatusCode != http.StatusOK {
-			continue
-		}
-		resp.Body.Close()
+
 		res := new(GetLatestBlockResponse)
 		err = tmjson.Unmarshal(bz, res)
 		if err != nil {
