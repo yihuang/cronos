@@ -6,7 +6,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/crypto-org-chain/cronos/file"
+	"github.com/crypto-org-chain/cronos/client/file"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/stretchr/testify/require"

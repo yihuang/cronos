@@ -126,7 +126,7 @@ import (
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 	cronosappclient "github.com/crypto-org-chain/cronos/client"
-	cronosfile "github.com/crypto-org-chain/cronos/file"
+	cronosfile "github.com/crypto-org-chain/cronos/client/file"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tmdb"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
