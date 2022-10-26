@@ -116,7 +116,7 @@ func (w *BlockFileWatcher) fetch(blockNum int) error {
 	path := w.getFilePath(blockNum)
 	f, err := os.Open(path)
 	if err == nil {
-		defer f.Close()
+		defer f.Close() //nolint
 		// valid 1st 8 bytes for downloaded file
 		var bytes [8]byte
 		if _, err = io.ReadFull(f, bytes[:]); err == nil {
@@ -125,7 +125,7 @@ func (w *BlockFileWatcher) fetch(blockNum int) error {
 				return nil
 			}
 		}
-		f.Close()
+		f.Close() //nolint
 	}
 
 	// download if file not exist
