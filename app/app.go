@@ -382,6 +382,7 @@ func New(
 			versionDB := tmdb.NewStore(plainDB, historyDB, changesetDB)
 			isGrpcOnly := cast.ToBool(appOpts.Get(cronosappclient.FlagIsGrpcOnly))
 			if isGrpcOnly {
+				const defaultMaxRetry = 50
 				latestVersion, err := versionDB.GetLatestVersion()
 				fmt.Printf("mm-latestVersion: %+v\n", latestVersion)
 				if err != nil {
@@ -422,6 +423,7 @@ func New(
 
 				isLocal := cast.ToBool(appOpts.Get(cronosappclient.FlagIsLocal))
 				remoteUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteUrl))
+				remoteWsUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteWsUrl))
 				concurrency := cast.ToInt(appOpts.Get(cronosappclient.FlagConcurrency))
 				synchronizer := cronosfile.NewBlockFileWatcher(concurrency, maxBlockNum, func(blockNum int) string {
 					return fmt.Sprintf("%s/%s", remoteUrl, cronosfile.DataFileName(blockNum))
@@ -459,13 +461,11 @@ func New(
 				}()
 
 				go func() {
-					maxRetry := 50
-					for i := 0; i < maxRetry; i++ {
+					for i := 0; i < defaultMaxRetry; i++ {
 						if i > 0 {
 							time.Sleep(time.Second)
 						}
-						// TODO: config remote tm
-						wsClient := cronosappclient.NewWebsocketClient("ws://localhost:26767/websocket")
+						wsClient := cronosappclient.NewWebsocketClient(remoteWsUrl)
 						chResult, err := wsClient.Subscribe()
 						if err != nil {
 							fmt.Printf("mm-subscribed[%+v]: %+v\n", i, err)
@@ -494,7 +494,7 @@ func New(
 							synchronizer.SetMaxBlockNum(blockNum)
 						}
 					}
-					panic(fmt.Sprintf("max retries %d reached", maxRetry))
+					panic(fmt.Sprintf("max retries %d reached", defaultMaxRetry))
 				}()
 			}
 
