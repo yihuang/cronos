@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -310,6 +311,19 @@ type App struct {
 	experimental bool
 }
 
+// Simplify block height for header
+type Header struct {
+	Height int64 `json:"height,omitempty"`
+}
+
+type Block struct {
+	Header Header `json:"header"`
+}
+
+type GetLatestBlockResponse struct {
+	Block *Block `json:"block,omitempty"`
+}
+
 // New returns a reference to an initialized chain.
 // NewSimApp returns a reference to an initialized SimApp.
 func New(
@@ -393,10 +407,41 @@ func New(
 					startBlockNum = 0
 				}
 				nextBlockNum := int(startBlockNum) + 1
-				// TODO: maxBlockNum init from primary node
-				maxBlockNum := 0
-				interval := time.Second
+				remoteGrpcUrl := cast.ToString(appOpts.Get(cronosappclient.FlagRemoteGrpcUrl))
+				maxBlockNum := -1
+				for i := 0; i < defaultMaxRetry; i++ {
+					if i > 0 {
+						time.Sleep(time.Second)
+					}
+					resp, err := http.Get(fmt.Sprintf("%s/cosmos/base/tendermint/v1beta1/blocks/latest", remoteGrpcUrl))
+					if err != nil {
+						fmt.Printf("error making http request: %s\n", err)
+						continue
+					}
 
+					bz, err := ioutil.ReadAll(resp.Body)
+					if err != nil {
+						continue
+					}
+					if resp.StatusCode != http.StatusOK {
+						continue
+					}
+					resp.Body.Close()
+					res := new(GetLatestBlockResponse)
+					err = tmjson.Unmarshal(bz, res)
+					if err != nil {
+						fmt.Printf("mm-read-res-err: %+v\n", err)
+						continue
+					}
+					maxBlockNum = int(res.Block.Header.Height)
+					fmt.Printf("mm-maxBlockNum: %d\n", maxBlockNum)
+					break
+				}
+				if maxBlockNum < 0 {
+					panic(fmt.Sprintf("max retries %d reached", defaultMaxRetry))
+				}
+
+				interval := time.Second
 				directory := filepath.Join(rootDir, "data", "file_streamer")
 				// streamer write the file blk by blk with concurrency 1
 				streamer := cronosfile.NewBlockFileWatcher(1, maxBlockNum, func(blockNum int) string {
