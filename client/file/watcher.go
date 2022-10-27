@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,7 +23,7 @@ type fileDownloader interface {
 type localFileDownloader struct{}
 
 func (d *localFileDownloader) GetData(path string) ([]byte, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = errNotExist
@@ -114,18 +115,20 @@ func (w *BlockFileWatcher) SetMaxBlockNum(num int) {
 
 func (w *BlockFileWatcher) fetch(blockNum int) error {
 	path := w.getFilePath(blockNum)
-	f, err := os.Open(path)
+	f, err := os.Open(filepath.Clean(path))
 	if err == nil {
-		defer f.Close() //nolint
+		defer func() {
+			_ = f.Close()
+		}()
 		// valid 1st 8 bytes for downloaded file
 		var bytes [8]byte
 		if _, err = io.ReadFull(f, bytes[:]); err == nil {
 			size := binary.BigEndian.Uint64(bytes[:])
-			if info, err := f.Stat(); err == nil && size+8 == uint64(info.Size()) {
+			if info, err := f.Stat(); err == nil && size+uint64(8) == uint64(info.Size()) {
 				return nil
 			}
 		}
-		f.Close() //nolint
+		_ = f.Close()
 	}
 
 	// download if file not exist
@@ -203,7 +206,7 @@ func (w *BlockFileWatcher) Start(
 						}
 					}
 				}
-				for k := range finishedBlockNums {
+				for k, _ := range finishedBlockNums {
 					if k <= blockNum {
 						delete(finishedBlockNums, k)
 					}

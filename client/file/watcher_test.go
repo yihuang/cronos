@@ -24,7 +24,7 @@ func setupDirectory(t *testing.T, directory string) func(t *testing.T) {
 func setupBlockFiles(directory string, start, end int) {
 	for i := start; i <= end; i++ {
 		file := GetLocalDataFileName(directory, i)
-		os.WriteFile(file, []byte(fmt.Sprint("block", i)), 0644)
+		os.WriteFile(file, []byte(fmt.Sprint("block", i)), 0600)
 	}
 }
 

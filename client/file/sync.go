@@ -95,7 +95,10 @@ func Sync(versionDB *tmdb.Store, remoteGrpcUrl, remoteUrl, remoteWsUrl, rootDir 
 				pairs, err := client.DecodeData(data.Data)
 				fmt.Printf("mm-pairs: %+v, %+v\n", len(pairs), err)
 				if err == nil {
-					versionDB.PutAtVersion(int64(data.BlockNum), pairs)
+					if err = versionDB.PutAtVersion(int64(data.BlockNum), pairs); err != nil {
+						fmt.Println("mm-put-at-version-panic")
+						panic(err)
+					}
 				}
 			case err := <-chErr:
 				// fail read
@@ -119,7 +122,7 @@ func Sync(versionDB *tmdb.Store, remoteGrpcUrl, remoteUrl, remoteWsUrl, rootDir 
 			case data := <-chData:
 				file := GetLocalDataFileName(directory, data.BlockNum)
 				fmt.Printf("mm-data.BlockNum: %+v\n", data.BlockNum)
-				if err := os.WriteFile(file, data.Data, 0644); err != nil {
+				if err := os.WriteFile(file, data.Data, 0600); err != nil {
 					fmt.Println("mm-WriteFile-panic")
 					panic(err)
 				}
