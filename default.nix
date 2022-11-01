@@ -4,9 +4,10 @@
 , rocksdb ? null
 , network ? "mainnet"  # mainnet|testnet
 , rev ? "dirty"
+, ref ? "devel"
 }:
 let
-  version = "v1.0.0";
+  version = ref;
   pname = "cronosd";
   tags = [ "ledger" "netgo" network ]
     ++ lib.lists.optionals (rocksdb != null) [ "rocksdb" "rocksdb_build" ];

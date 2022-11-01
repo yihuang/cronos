@@ -20,6 +20,7 @@
   outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils, rocksdb-src }:
     let
       rev = self.shortRev or "dirty";
+      ref = self.ref or "devel";
       mkApp = drv: {
         type = "app";
         program = "${drv}/bin/${drv.meta.mainProgram}";
@@ -92,7 +93,7 @@
               value =
                 let
                   cronosd = callPackage ./. {
-                    inherit rev network;
+                    inherit rev ref network;
                   };
                   bundle = bundle-exe cronosd;
                 in
