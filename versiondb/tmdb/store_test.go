@@ -6,6 +6,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/client"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -35,7 +36,9 @@ func TestFeed(t *testing.T) {
 			_, err = buf.Write(bz)
 			require.NoError(t, err)
 		}
-		pairs, err := client.DecodeData(buf.Bytes())
+		data := buf.Bytes()
+		prefix := sdk.Uint64ToBigEndian(uint64(len(data)))
+		pairs, err := client.DecodeData(append(prefix, data...))
 		require.NoError(t, err)
 		require.NotEmpty(t, pairs)
 		store := storeCreator()

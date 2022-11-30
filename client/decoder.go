@@ -6,7 +6,7 @@ import (
 )
 
 func DecodeData(data []byte) (pairs []types.StoreKVPair, err error) {
-	offset := 0
+	offset := 8
 	for offset < len(data) {
 		size, n := proto.DecodeVarint(data[offset:])
 		offset += n
