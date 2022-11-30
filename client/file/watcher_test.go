@@ -55,7 +55,7 @@ func TestFileWatcher(t *testing.T) {
 		setupBlockFiles(directory, startBlockNum, endBlockNum)
 		watcher := NewBlockFileWatcher(concurrency, endBlockNum+1, func(blockNum int) string {
 			return GetLocalDataFileName(directory, blockNum)
-		}, true)
+		}, nil, true)
 		total := start(watcher, startBlockNum, endBlockNum)
 		expected := endBlockNum - startBlockNum + 1
 		require.Equal(t, expected, total)
@@ -71,7 +71,7 @@ func TestFileWatcher(t *testing.T) {
 		}()
 		watcher := NewBlockFileWatcher(concurrency, endBlockNum+1, func(blockNum int) string {
 			return fmt.Sprintf("http://localhost:%s/%s", port, DataFileName(blockNum))
-		}, false)
+		}, nil, false)
 		total := start(watcher, startBlockNum, endBlockNum)
 		expected := endBlockNum - startBlockNum + 1
 		require.Equal(t, expected, total)

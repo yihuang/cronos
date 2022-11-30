@@ -1,7 +1,9 @@
 package file
 
 import (
+	"encoding/binary"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -85,7 +87,7 @@ func Sync(versionDB *tmdb.Store, remoteGrpcUrl, remoteUrl, remoteWsUrl, rootDir 
 	// streamer write the file blk by blk with concurrency 1
 	streamer := NewBlockFileWatcher(1, maxBlockNum, func(blockNum int) string {
 		return GetLocalDataFileName(directory, blockNum)
-	}, true)
+	}, nil, true)
 	streamer.Start(nextBlockNum, interval)
 	go func() {
 		chData, chErr := streamer.SubscribeData(), streamer.SubscribeError()
@@ -108,9 +110,32 @@ func Sync(versionDB *tmdb.Store, remoteGrpcUrl, remoteUrl, remoteWsUrl, rootDir 
 		}
 	}()
 
-	synchronizer := NewBlockFileWatcher(concurrency, maxBlockNum, func(blockNum int) string {
-		return fmt.Sprintf("%s/%s", remoteUrl, DataFileName(blockNum))
-	}, isLocal)
+	synchronizer := NewBlockFileWatcher(
+		concurrency,
+		maxBlockNum,
+		func(blockNum int) string {
+			return fmt.Sprintf("%s/%s", remoteUrl, DataFileName(blockNum))
+		},
+		func(blockNum int) bool {
+			path := GetLocalDataFileName(directory, blockNum)
+			f, err := os.Open(path)
+			if err == nil {
+				defer func() {
+					_ = f.Close()
+				}()
+				// valid 1st 8 bytes for downloaded file
+				var bytes [8]byte
+				if _, err = io.ReadFull(f, bytes[:]); err == nil {
+					size := binary.BigEndian.Uint64(bytes[:])
+					if info, err := f.Stat(); err == nil && size+uint64(8) == uint64(info.Size()) {
+						return false
+					}
+				}
+			}
+			return true
+		},
+		isLocal,
+	)
 	synchronizer.Start(nextBlockNum, interval)
 	go func() {
 		// max retry for temporary io error

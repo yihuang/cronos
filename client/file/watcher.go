@@ -1,10 +1,8 @@
 package file
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -61,29 +59,32 @@ type BlockData struct {
 }
 
 type BlockFileWatcher struct {
-	concurrency int
-	maxBlockNum int64
-	getFilePath func(blockNum int) string
-	downloader  fileDownloader
-	chData      chan *BlockData
-	chError     chan error
-	chDone      chan bool
-	startLock   *sync.Mutex
+	concurrency   int
+	maxBlockNum   int64
+	getFilePath   func(blockNum int) string
+	onBeforeFetch func(blockNum int) bool
+	downloader    fileDownloader
+	chData        chan *BlockData
+	chError       chan error
+	chDone        chan bool
+	startLock     *sync.Mutex
 }
 
 func NewBlockFileWatcher(
 	concurrency int,
 	maxBlockNum int,
 	getFilePath func(blockNum int) string,
+	onBeforeFetch func(blockNum int) bool,
 	isLocal bool,
 ) *BlockFileWatcher {
 	w := &BlockFileWatcher{
-		concurrency: concurrency,
-		maxBlockNum: int64(maxBlockNum),
-		getFilePath: getFilePath,
-		chData:      make(chan *BlockData),
-		chError:     make(chan error),
-		startLock:   new(sync.Mutex),
+		concurrency:   concurrency,
+		maxBlockNum:   int64(maxBlockNum),
+		getFilePath:   getFilePath,
+		onBeforeFetch: onBeforeFetch,
+		chData:        make(chan *BlockData),
+		chError:       make(chan error),
+		startLock:     new(sync.Mutex),
 	}
 	if isLocal {
 		w.downloader = new(localFileDownloader)
@@ -114,26 +115,12 @@ func (w *BlockFileWatcher) SetMaxBlockNum(num int) {
 }
 
 func (w *BlockFileWatcher) fetch(blockNum int) error {
-	path := w.getFilePath(blockNum)
-	f, err := os.Open(filepath.Clean(path))
-	if err == nil {
-		defer func() {
-			_ = f.Close()
-		}()
-		// valid 1st 8 bytes for downloaded file
-		var bytes [8]byte
-		if _, err = io.ReadFull(f, bytes[:]); err == nil {
-			size := binary.BigEndian.Uint64(bytes[:])
-			if info, err := f.Stat(); err == nil && size+uint64(8) == uint64(info.Size()) {
-				return nil
-			}
-		}
-		_ = f.Close()
+	if w.onBeforeFetch != nil && !w.onBeforeFetch(blockNum) {
+		return nil
 	}
 
-	// download if file not exist
+	path := w.getFilePath(blockNum)
 	data, err := w.downloader.GetData(path)
-	fmt.Printf("mm-fetch: %+v, %+v, %+v\n", blockNum, len(data), err)
 	if err != nil {
 		if err != errNotExist {
 			// avoid blocked by error when not subscribe
