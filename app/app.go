@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
@@ -29,6 +30,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/store/streaming"
+	"github.com/cosmos/cosmos-sdk/store/streaming/file"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -150,6 +152,8 @@ const (
 	//
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
+
+	FileStreamerDirectory = "file_streamer"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -357,6 +361,28 @@ func New(
 
 	streamers := cast.ToStringSlice(appOpts.Get("store.streamers"))
 	for _, streamerName := range streamers {
+		if streamerName == "file" {
+			streamingDir := filepath.Join(cast.ToString(appOpts.Get(flags.FlagHome)), "data", FileStreamerDirectory)
+			if err := os.MkdirAll(streamingDir, os.ModePerm); err != nil {
+				panic(err)
+			}
+
+			// default to exposing all
+			exposeStoreKeys := make([]storetypes.StoreKey, 0, len(keys))
+			for _, storeKey := range keys {
+				exposeStoreKeys = append(exposeStoreKeys, storeKey)
+			}
+			service, err := file.NewStreamingService(streamingDir, "", exposeStoreKeys, appCodec, false, true, true)
+			if err != nil {
+				panic(err)
+			}
+			bApp.SetStreamingService(service)
+
+			wg := new(sync.WaitGroup)
+			if err := service.Stream(wg); err != nil {
+				panic(err)
+			}
+		}
 		if streamerName == "versiondb" {
 			rootDir := cast.ToString(appOpts.Get(flags.FlagHome))
 			dataDir := filepath.Join(rootDir, "data", "versiondb")
