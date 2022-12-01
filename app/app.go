@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -757,9 +758,11 @@ func New(
 	app.setPostHandler()
 
 	if loadLatest {
+		fmt.Println("LoadLatestVersion begin")
 		if err := app.LoadLatestVersion(); err != nil {
 			tmos.Exit(err.Error())
 		}
+		fmt.Println("LoadLatestVersion end")
 	}
 
 	app.ScopedIBCKeeper = scopedIBCKeeper
