@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -56,11 +55,12 @@ func (d *httpFileDownloader) GetData(path string) ([]byte, error) {
 type BlockData struct {
 	BlockNum int
 	Data     []byte
+	ChResult chan<- error
 }
 
 type BlockFileWatcher struct {
 	concurrency   int
-	maxBlockNum   int64
+	maxBlockNum   int
 	getFilePath   func(blockNum int) string
 	onBeforeFetch func(blockNum int) bool
 	downloader    fileDownloader
@@ -68,6 +68,7 @@ type BlockFileWatcher struct {
 	chError       chan error
 	chDone        chan bool
 	startLock     *sync.Mutex
+	maxBlockLock  *sync.RWMutex
 }
 
 func NewBlockFileWatcher(
@@ -79,12 +80,13 @@ func NewBlockFileWatcher(
 ) *BlockFileWatcher {
 	w := &BlockFileWatcher{
 		concurrency:   concurrency,
-		maxBlockNum:   int64(maxBlockNum),
+		maxBlockNum:   maxBlockNum,
 		getFilePath:   getFilePath,
 		onBeforeFetch: onBeforeFetch,
 		chData:        make(chan *BlockData),
 		chError:       make(chan error),
 		startLock:     new(sync.Mutex),
+		maxBlockLock:  new(sync.RWMutex),
 	}
 	if isLocal {
 		w.downloader = new(localFileDownloader)
@@ -111,7 +113,12 @@ func (w *BlockFileWatcher) SubscribeError() <-chan error {
 }
 
 func (w *BlockFileWatcher) SetMaxBlockNum(num int) {
-	atomic.StoreInt64(&w.maxBlockNum, int64(num))
+	w.maxBlockLock.Lock()
+	defer w.maxBlockLock.Unlock()
+	// avoid dup job when set max to smaller one while locking
+	if num > w.maxBlockNum {
+		w.maxBlockNum = num
+	}
 }
 
 func (w *BlockFileWatcher) fetch(blockNum int) error {
@@ -131,11 +138,14 @@ func (w *BlockFileWatcher) fetch(blockNum int) error {
 		}
 		return err
 	}
+
+	chResult := make(chan error)
 	w.chData <- &BlockData{
 		BlockNum: blockNum,
 		Data:     data,
+		ChResult: chResult,
 	}
-	return nil
+	return <-chResult
 }
 
 func (w *BlockFileWatcher) Start(
@@ -158,7 +168,9 @@ func (w *BlockFileWatcher) Start(
 			default:
 				wg := new(sync.WaitGroup)
 				currentBlockNum := blockNum
-				maxBlockNum := int(atomic.LoadInt64(&w.maxBlockNum))
+				w.maxBlockLock.RLock()
+				maxBlockNum := w.maxBlockNum
+				w.maxBlockLock.RUnlock()
 				concurrency := w.concurrency
 				if diff := maxBlockNum - currentBlockNum; diff < concurrency {
 					if diff <= 0 {

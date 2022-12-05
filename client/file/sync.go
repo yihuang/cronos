@@ -96,12 +96,13 @@ func Sync(versionDB *tmdb.Store, remoteGrpcUrl, remoteUrl, remoteWsUrl, rootDir 
 			case data := <-chData:
 				pairs, err := client.DecodeData(data.Data)
 				fmt.Printf("mm-pairs: %+v, %+v\n", len(pairs), err)
-				if err == nil {
-					if err = versionDB.PutAtVersion(int64(data.BlockNum), pairs); err != nil {
-						fmt.Println("mm-put-at-version-panic")
-						panic(err)
-					}
+				if err != nil {
+					fmt.Println("invalid decode")
+				} else if err = versionDB.PutAtVersion(int64(data.BlockNum), pairs); err != nil {
+					fmt.Println("mm-put-at-version-panic")
+					panic(err)
 				}
+				data.ChResult <- err
 			case err := <-chErr:
 				// fail read
 				fmt.Println("mm-fail-read-panic")
@@ -150,12 +151,14 @@ func Sync(versionDB *tmdb.Store, remoteGrpcUrl, remoteUrl, remoteWsUrl, rootDir 
 				if err := os.WriteFile(file, data.Data, 0600); err != nil {
 					fmt.Println("mm-WriteFile-panic")
 					panic(err)
+				} else {
+					retry = 0
+					fmt.Println("mm-reset-retry")
+					if data.BlockNum > maxBlockNum {
+						streamer.SetMaxBlockNum(data.BlockNum)
+					}
 				}
-				retry = 0
-				fmt.Println("mm-reset-retry")
-				if data.BlockNum > maxBlockNum {
-					streamer.SetMaxBlockNum(data.BlockNum)
-				}
+				data.ChResult <- err
 			case err := <-chErr:
 				retry++
 				fmt.Println("mm-retry", retry)
@@ -200,7 +203,6 @@ func Sync(versionDB *tmdb.Store, remoteGrpcUrl, remoteUrl, remoteWsUrl, rootDir 
 				blockNum := int(data.Header.Height)
 				fmt.Printf("mm-set-max-blk: %+v\n", blockNum)
 				synchronizer.SetMaxBlockNum(blockNum)
-				streamer.SetMaxBlockNum(blockNum)
 			}
 		}
 		panic(fmt.Sprintf("max retries %d reached", defaultMaxRetry))
