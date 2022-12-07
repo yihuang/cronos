@@ -99,9 +99,9 @@ schema = 3
     version = "v1.0.0-alpha7"
     hash = "sha256-2wCH+toTF2A6MfFjOa13muEH5oBCcxAhZEqirNOrBA0="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.46.6"
-    hash = "sha256-H1VZxZUWXhpXiY3A9smLp09MEGpXmh+XvX6YUiXPcpQ="
-    replaced = "github.com/cosmos/cosmos-sdk"
+    version = "v0.43.0-beta1.0.20221207094852-31cdff3f2c67"
+    hash = "sha256-f9qJh6OigazIqDazT67BGFprWyaa8+AyMiyoXNqwLpc="
+    replaced = "github.com/yihuang/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
@@ -109,8 +109,8 @@ schema = 3
     version = "v1.2.0"
     hash = "sha256-209TcVuXc5s/TcOvNlaQ1HEJAUDTEK3nxPhs+d8TEcY="
   [mod."github.com/cosmos/iavl"]
-    version = "v0.16.1-0.20221201032849-c8214cfb982c"
-    hash = "sha256-IC2Yu5bgQoaVbLkLL7bl3WdrfCY0sn6SjRtUf699qJc="
+    version = "v0.16.1-0.20221207094035-eda8927928d7"
+    hash = "sha256-tdPGM6PfGObNmtEQGfzLxjkmGtOQ0dQ3qEr6gHtwInI="
     replaced = "github.com/yihuang/iavl"
   [mod."github.com/cosmos/ibc-go/v5"]
     version = "v5.1.0"
