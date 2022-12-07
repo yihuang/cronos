@@ -4,9 +4,7 @@ config {
   'cronos_777-1'+: {
     'app-config'+: {
       'minimum-gas-prices': '100000000000basetcro',
-    },
-    'app-config'+: {
-      'iavl-lazy-loading':: super.'iavl-lazy-loading',
+      'iavl-lazy-loading':: super['iavl-lazy-loading'],
     },
     genesis+: {
       app_state+: {
