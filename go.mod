@@ -193,7 +193,7 @@ replace (
 	github.com/confio/ics23/go => github.com/cosmos/cosmos-sdk/ics23/go v0.8.0
 	github.com/cosmos/cosmos-sdk => github.com/yihuang/cosmos-sdk v0.43.0-beta1.0.20221207094852-31cdff3f2c67
 
-	github.com/cosmos/iavl => github.com/yihuang/iavl v0.16.1-0.20221207094035-eda8927928d7
+	github.com/cosmos/iavl => github.com/yihuang/iavl v0.16.1-0.20221208004554-cb23bc86dd33
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
 	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.1-cronos
 
