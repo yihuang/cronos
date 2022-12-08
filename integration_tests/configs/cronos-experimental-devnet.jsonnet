@@ -12,6 +12,7 @@ config {
         address: '0.0.0.0:{EVMRPC_PORT}',
         'ws-address': '0.0.0.0:{EVMRPC_PORT_WS}',
       },
+      store:: super.store,
     },
     genesis+: {
       app_state+: {
