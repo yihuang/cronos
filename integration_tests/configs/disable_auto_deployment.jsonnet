@@ -9,6 +9,7 @@ config {
       'json-rpc'+: {
         api:: super['api'],
       },
+      store:: super.store,
     },
     accounts: [{
       name: 'community',
