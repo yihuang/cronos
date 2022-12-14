@@ -462,8 +462,9 @@ schema = 3
     hash = "sha256-wdkMisD8IPwZJ0mbtVg9J6A+R/zYkpVK7e47OR53BCU="
     replaced = "github.com/tendermint/tendermint"
   [mod."github.com/tendermint/tm-db"]
-    version = "v0.6.7"
-    hash = "sha256-hl/3RrBrpkk2zA6dmrNlIYKs1/GfqegSscDSkA5Pjlo="
+    version = "v0.0.0-20221214103931-cba57f0ac8ca"
+    hash = "sha256-KFd0FiGhAklG/EneHbREQ2HUW9JBHYk/ZMQi7GLD32g="
+    replaced = "github.com/yihuang/tm-db"
   [mod."github.com/tklauser/go-sysconf"]
     version = "v0.3.10"
     hash = "sha256-Zf2NsgM9+HeM949vCce4HQtSbfUiFpeiQ716yKcFyx4="
