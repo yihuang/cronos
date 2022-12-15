@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/cosmos/gorocksdb"
 	"github.com/cosmos/iavl"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
@@ -25,10 +27,22 @@ const (
 
 var VersionDBMagic = []byte("VERDB000")
 
-func DumpChangeSetCmd() *cobra.Command {
+func ChangeSetGroupCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dump-changeset",
-		Short: "Extract changeset from iavl versions",
+		Use:   "changeset",
+		Short: "dump changeset from iavl versions or manage changeset files",
+	}
+	cmd.AddCommand(
+		DumpFileChangeSetCmd(),
+		DumpSSTChangeSetCmd(),
+	)
+	return cmd
+}
+
+func DumpFileChangeSetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "dump-file",
+		Short: "Extract changeset from iavl versions, and save to plain file format",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := server.GetServerContextFromCmd(cmd)
@@ -82,7 +96,7 @@ func DumpChangeSetCmd() *cobra.Command {
 
 			var sizeBuf [binary.MaxVarintLen64]byte
 			tree := iavl.NewImmutableTree(db, cacheSize, true)
-			tree.TraverseStateChanges(int64(startVersion), int64(endVersion), func(version int64, changeSet *iavl.ChangeSet) error {
+			return tree.TraverseStateChanges(int64(startVersion), int64(endVersion), func(version int64, changeSet *iavl.ChangeSet) error {
 				bz, err := proto.Marshal(changeSet)
 				if err != nil {
 					return err
@@ -97,12 +111,85 @@ func DumpChangeSetCmd() *cobra.Command {
 				writer.Write(bz)
 				return nil
 			})
-
-			return nil
 		},
 	}
 	cmd.Flags().Int(flagStartVersion, 1, "The start version")
 	cmd.Flags().Int(flagEndVersion, 0, "The end version, exclusive")
 	cmd.Flags().String(flagOutput, "-", "Output file, default to stdout")
+	return cmd
+}
+
+func DumpSSTChangeSetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "dump-sst",
+		Short: "Extract changeset from iavl versions and save to rocksdb sst file",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := server.GetServerContextFromCmd(cmd)
+			if err := ctx.Viper.BindPFlags(cmd.Flags()); err != nil {
+				return err
+			}
+
+			backendType := server.GetAppDBBackend(ctx.Viper)
+			home := ctx.Viper.GetString(flags.FlagHome)
+			dataDir := filepath.Join(home, "data")
+			db, err := dbm.NewDB("application", backendType, dataDir)
+			if err != nil {
+				return err
+			}
+
+			prefix := []byte(fmt.Sprintf("s/k:%s/", args[0]))
+			db = dbm.NewPrefixDB(db, prefix)
+			cacheSize := cast.ToInt(ctx.Viper.Get("iavl-cache-size"))
+
+			startVersion, err := cmd.Flags().GetInt(flagStartVersion)
+			if err != nil {
+				return err
+			}
+			endVersion, err := cmd.Flags().GetInt(flagEndVersion)
+			if err != nil {
+				return err
+			}
+
+			output, err := cmd.Flags().GetString(flagOutput)
+			if err != nil {
+				return err
+			}
+			if len(output) == 0 {
+				return errors.New("output file is not specified")
+			}
+
+			envOpts := gorocksdb.NewDefaultEnvOptions()
+			opts := gorocksdb.NewDefaultOptions()
+			w := gorocksdb.NewSSTFileWriter(envOpts, opts)
+			defer w.Destroy()
+
+			if err := w.Open(output); err != nil {
+				return err
+			}
+
+			tree := iavl.NewImmutableTree(db, cacheSize, true)
+			if err := tree.TraverseStateChanges(int64(startVersion), int64(endVersion), func(version int64, changeSet *iavl.ChangeSet) error {
+				versionBuf := make([]byte, 8)
+				binary.BigEndian.PutUint64(versionBuf[:], uint64(version))
+				for _, pair := range changeSet.Pairs {
+					key := make([]byte, 8+len(pair.Key))
+					copy(key[:8], versionBuf)
+					copy(key[8:], pair.Key)
+					// deletion will have empty values
+					w.Add(key, pair.Value)
+				}
+
+				return nil
+			}); err != nil {
+				return err
+			}
+
+			return w.Finish()
+		},
+	}
+	cmd.Flags().Int(flagStartVersion, 1, "The start version")
+	cmd.Flags().Int(flagEndVersion, 0, "The end version, exclusive")
+	cmd.Flags().String(flagOutput, "", "Output file, default to stdout")
 	return cmd
 }
