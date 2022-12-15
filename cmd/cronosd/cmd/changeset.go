@@ -2,12 +2,15 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/edsrzf/mmap-go"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -36,6 +39,7 @@ func ChangeSetGroupCmd() *cobra.Command {
 		DumpFileChangeSetCmd(),
 		DumpSSTChangeSetCmd(),
 		IngestSSTCmd(),
+		ConvertPlainToSSTCmd(),
 	)
 	return cmd
 }
@@ -51,7 +55,7 @@ func DumpFileChangeSetCmd() *cobra.Command {
 				return err
 			}
 
-			db, err := openDB(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
+			db, err := openDBReadOnly(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
 			if err != nil {
 				return err
 			}
@@ -128,7 +132,7 @@ func DumpSSTChangeSetCmd() *cobra.Command {
 				return err
 			}
 
-			db, err := openDB(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
+			db, err := openDBReadOnly(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
 			if err != nil {
 				return err
 			}
@@ -165,17 +169,7 @@ func DumpSSTChangeSetCmd() *cobra.Command {
 
 			tree := iavl.NewImmutableTree(db, cacheSize, true)
 			if err := tree.TraverseStateChanges(int64(startVersion), int64(endVersion), func(version int64, changeSet *iavl.ChangeSet) error {
-				versionBuf := make([]byte, 8)
-				binary.BigEndian.PutUint64(versionBuf[:], uint64(version))
-				for _, pair := range changeSet.Pairs {
-					key := make([]byte, 8+len(pair.Key))
-					copy(key[:8], versionBuf)
-					copy(key[8:], pair.Key)
-					// deletion will have empty values
-					w.Add(key, pair.Value)
-				}
-
-				return nil
+				return writeChangeSetToSST(w, version, changeSet)
 			}); err != nil {
 				return err
 			}
@@ -209,7 +203,108 @@ func IngestSSTCmd() *cobra.Command {
 	return cmd
 }
 
-func openDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
+func ConvertPlainToSSTCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "plain-to-sst plain-input sst-output",
+		Short: "Convert plain file format to rocksdb sst file",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			plainFile := args[0]
+			sstFile := args[1]
+
+			fp, err := os.Open(plainFile)
+			if err != nil {
+				return err
+			}
+			defer fp.Close()
+
+			data, err := mmap.Map(fp, mmap.RDONLY, 0)
+			if err != nil {
+				return err
+			}
+			defer data.Unmap()
+
+			envOpts := gorocksdb.NewDefaultEnvOptions()
+			opts := gorocksdb.NewDefaultOptions()
+			w := gorocksdb.NewSSTFileWriter(envOpts, opts)
+			defer w.Destroy()
+
+			if err := w.Open(sstFile); err != nil {
+				return err
+			}
+
+			offset, err := readPlainFile(data, func(version int64, changeSet *iavl.ChangeSet) error {
+				return writeChangeSetToSST(w, version, changeSet)
+			})
+			if err != nil {
+				return err
+			}
+
+			if offset != len(data) {
+				fmt.Println("file not complete, last completed offset:", offset)
+			}
+
+			return w.Finish()
+		},
+	}
+	return cmd
+}
+
+func readPlainFile(data []byte, fn func(version int64, changeSet *iavl.ChangeSet) error) (int, error) {
+	if bytes.Compare(data[:8], VersionDBMagic) != 0 {
+		return 0, errors.New("invalid file magic header")
+	}
+
+	offset := 8
+	tmp := offset
+
+	for offset < len(data) {
+		version, n := binary.Uvarint(data[tmp : tmp+binary.MaxVarintLen64])
+		if n <= 0 {
+			return offset, fmt.Errorf("read version fail: %d", n)
+		}
+		tmp += n
+
+		usize, n := binary.Uvarint(data[tmp : tmp+binary.MaxVarintLen64])
+		if n <= 0 {
+			return offset, fmt.Errorf("read size fail: %d", n)
+		}
+		tmp += n
+
+		size := int(usize)
+		if tmp+size > len(data) {
+			break
+		}
+		var changeSet iavl.ChangeSet
+		if err := proto.Unmarshal(data[tmp:tmp+size], &changeSet); err != nil {
+			return offset, err
+		}
+
+		if err := fn(int64(version), &changeSet); err != nil {
+			return offset, err
+		}
+
+		tmp += size
+		offset = tmp
+	}
+	return offset, nil
+}
+
+func writeChangeSetToSST(w *gorocksdb.SSTFileWriter, version int64, changeSet *iavl.ChangeSet) error {
+	versionBuf := make([]byte, 8)
+	binary.BigEndian.PutUint64(versionBuf[:], uint64(version))
+	for _, pair := range changeSet.Pairs {
+		key := make([]byte, 8+len(pair.Key))
+		copy(key[:8], versionBuf)
+		copy(key[8:], pair.Key)
+		// deletion will have empty values
+		w.Add(key, pair.Value)
+	}
+
+	return nil
+}
+
+func openDBReadOnly(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	if backendType != dbm.RocksDBBackend {
 		return nil, errors.New("only support rocksdb backend")
 	}
