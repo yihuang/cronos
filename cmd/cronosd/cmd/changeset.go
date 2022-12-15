@@ -158,9 +158,7 @@ func DumpSSTChangeSetCmd() *cobra.Command {
 				return errors.New("output file is not specified")
 			}
 
-			envOpts := gorocksdb.NewDefaultEnvOptions()
-			opts := gorocksdb.NewDefaultOptions()
-			w := gorocksdb.NewSSTFileWriter(envOpts, opts)
+			w := newSSTFileWriter()
 			defer w.Destroy()
 
 			if err := w.Open(output); err != nil {
@@ -224,9 +222,7 @@ func ConvertPlainToSSTCmd() *cobra.Command {
 			}
 			defer data.Unmap()
 
-			envOpts := gorocksdb.NewDefaultEnvOptions()
-			opts := gorocksdb.NewDefaultOptions()
-			w := gorocksdb.NewSSTFileWriter(envOpts, opts)
+			w := newSSTFileWriter()
 			defer w.Destroy()
 
 			if err := w.Open(sstFile); err != nil {
@@ -315,5 +311,16 @@ func openDBReadOnly(home string, backendType dbm.BackendType) (dbm.DB, error) {
 		return nil, err
 	}
 	return dbm.NewRocksDBWithRawDB(raw), nil
+}
 
+func newSSTFileWriter() *gorocksdb.SSTFileWriter {
+	envOpts := gorocksdb.NewDefaultEnvOptions()
+	opts := gorocksdb.NewDefaultOptions()
+	opts.SetCompression(gorocksdb.LZ4HCCompression)
+	compressOpts := gorocksdb.NewDefaultCompressionOptions()
+	compressOpts.MaxDictBytes = 112640 // 110k
+	opts.SetCompressionOptions(compressOpts)
+	zstdOpts := gorocksdb.NewZSTDCompressionOptions(1, compressOpts.MaxDictBytes*100)
+	opts.SetZSTDCompressionOptions(zstdOpts)
+	return gorocksdb.NewSSTFileWriter(envOpts, opts)
 }

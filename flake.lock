@@ -73,16 +73,16 @@
     "rocksdb-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1648583659,
-        "narHash": "sha256-m6twgWcPTVD6uzcLuskKX6voeq7qAF3rozfLqSakI7s=",
+        "lastModified": 1665515906,
+        "narHash": "sha256-Np3HPTZYzyoPOKL0xgsLzcvOkceFiEQd+1nyGbg4BHo=",
         "owner": "facebook",
         "repo": "rocksdb",
-        "rev": "da11a59034584ea2d0911268b8136e5249d6b692",
+        "rev": "eb9a80fe1f18017b4d7f4084e8f2554f12234822",
         "type": "github"
       },
       "original": {
         "owner": "facebook",
-        "ref": "v6.29.5",
+        "ref": "v7.7.3",
         "repo": "rocksdb",
         "type": "github"
       }

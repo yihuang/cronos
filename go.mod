@@ -192,6 +192,7 @@ replace (
 	// Ref: https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702
 	github.com/confio/ics23/go => github.com/confio/ics23/go v0.9.0
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.7
+	github.com/cosmos/gorocksdb => github.com/yihuang/gorocksdb v1.2.1-0.20221215151045-cf18f9764829
 
 	// https://github.com/yihuang/iavl/tree/dump_changeset
 	github.com/cosmos/iavl => github.com/yihuang/iavl v0.16.1-0.20221215040939-befecd7bd7ea

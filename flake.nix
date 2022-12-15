@@ -12,7 +12,7 @@
       inputs.utils.follows = "flake-utils";
     };
     rocksdb-src = {
-      url = "github:facebook/rocksdb/v6.29.5";
+      url = "github:facebook/rocksdb/v7.7.3";
       flake = false;
     };
   };
@@ -68,7 +68,7 @@
         '';
         rocksdb = (prev.rocksdb.override { enableJemalloc = true; }).overrideAttrs (old: rec {
           pname = "rocksdb";
-          version = "6.29.5";
+          version = "7.7.3";
           src = rocksdb-src;
         });
       } // (with final;
