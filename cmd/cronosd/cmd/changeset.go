@@ -35,6 +35,7 @@ func ChangeSetGroupCmd() *cobra.Command {
 	cmd.AddCommand(
 		DumpFileChangeSetCmd(),
 		DumpSSTChangeSetCmd(),
+		IngestSSTCmd(),
 	)
 	return cmd
 }
@@ -50,16 +51,13 @@ func DumpFileChangeSetCmd() *cobra.Command {
 				return err
 			}
 
-			backendType := server.GetAppDBBackend(ctx.Viper)
-			home := ctx.Viper.GetString(flags.FlagHome)
-			dataDir := filepath.Join(home, "data")
-			db, err := dbm.NewDB("application", backendType, dataDir)
+			db, err := openDB(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
 			if err != nil {
 				return err
 			}
-
 			prefix := []byte(fmt.Sprintf("s/k:%s/", args[0]))
 			db = dbm.NewPrefixDB(db, prefix)
+
 			cacheSize := cast.ToInt(ctx.Viper.Get("iavl-cache-size"))
 
 			startVersion, err := cmd.Flags().GetInt(flagStartVersion)
@@ -130,16 +128,13 @@ func DumpSSTChangeSetCmd() *cobra.Command {
 				return err
 			}
 
-			backendType := server.GetAppDBBackend(ctx.Viper)
-			home := ctx.Viper.GetString(flags.FlagHome)
-			dataDir := filepath.Join(home, "data")
-			db, err := dbm.NewDB("application", backendType, dataDir)
+			db, err := openDB(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
 			if err != nil {
 				return err
 			}
-
 			prefix := []byte(fmt.Sprintf("s/k:%s/", args[0]))
 			db = dbm.NewPrefixDB(db, prefix)
+
 			cacheSize := cast.ToInt(ctx.Viper.Get("iavl-cache-size"))
 
 			startVersion, err := cmd.Flags().GetInt(flagStartVersion)
@@ -192,4 +187,38 @@ func DumpSSTChangeSetCmd() *cobra.Command {
 	cmd.Flags().Int(flagEndVersion, 0, "The end version, exclusive")
 	cmd.Flags().String(flagOutput, "", "Output file, default to stdout")
 	return cmd
+}
+
+func IngestSSTCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "ingest-sst db-path file1.sst file2.sst ...",
+		Short: "Ingest sst files into database",
+		Args:  cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dbPath := args[0]
+			opts := gorocksdb.NewDefaultOptions()
+			opts.SetCreateIfMissing(true)
+			db, err := gorocksdb.OpenDb(opts, dbPath)
+			if err != nil {
+				return err
+			}
+			ingestOpts := gorocksdb.NewDefaultIngestExternalFileOptions()
+			return db.IngestExternalFile(args[1:], ingestOpts)
+		},
+	}
+	return cmd
+}
+
+func openDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
+	if backendType != dbm.RocksDBBackend {
+		return nil, errors.New("only support rocksdb backend")
+	}
+	dataDir := filepath.Join(home, "data", "application.db")
+	opts := gorocksdb.NewDefaultOptions()
+	raw, err := gorocksdb.OpenDbForReadOnly(opts, dataDir, false)
+	if err != nil {
+		return nil, err
+	}
+	return dbm.NewRocksDBWithRawDB(raw), nil
+
 }

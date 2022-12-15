@@ -208,7 +208,7 @@ replace (
 	github.com/tendermint/tendermint => github.com/tendermint/tendermint v0.34.24-0.20221110131553-ec471ba27efd
 
 	// https://github.com/yihuang/tm-db/tree/readonly
-	github.com/tendermint/tm-db => github.com/yihuang/tm-db v0.0.0-20221214103931-cba57f0ac8ca
+	github.com/tendermint/tm-db => github.com/yihuang/tm-db v0.0.0-20221215054416-169dd13d168d
 
 	// TODO: remove after fixed https://github.com/cosmos/cosmos-sdk/issues/11364
 	github.com/zondax/hid => github.com/zondax/hid v0.9.0
