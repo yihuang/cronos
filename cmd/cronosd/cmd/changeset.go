@@ -316,9 +316,10 @@ func openDBReadOnly(home string, backendType dbm.BackendType) (dbm.DB, error) {
 func newSSTFileWriter() *gorocksdb.SSTFileWriter {
 	envOpts := gorocksdb.NewDefaultEnvOptions()
 	opts := gorocksdb.NewDefaultOptions()
-	opts.SetCompression(gorocksdb.LZ4HCCompression)
+	opts.SetCompression(gorocksdb.ZSTDCompression)
 	compressOpts := gorocksdb.NewDefaultCompressionOptions()
 	compressOpts.MaxDictBytes = 112640 // 110k
+	compressOpts.Level = 12
 	opts.SetCompressionOptions(compressOpts)
 	zstdOpts := gorocksdb.NewZSTDCompressionOptions(1, compressOpts.MaxDictBytes*100)
 	opts.SetZSTDCompressionOptions(zstdOpts)
