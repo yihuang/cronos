@@ -46,7 +46,7 @@ func ChangeSetGroupCmd() *cobra.Command {
 
 func DumpFileChangeSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dump-file",
+		Use:   "dump-file [store]",
 		Short: "Extract changeset from iavl versions, and save to plain file format",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -123,7 +123,7 @@ func DumpFileChangeSetCmd() *cobra.Command {
 
 func DumpSSTChangeSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dump-sst",
+		Use:   "dump-sst [store]",
 		Short: "Extract changeset from iavl versions and save to rocksdb sst file",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
