@@ -2366,8 +2366,8 @@ github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:
 github.com/yagipy/maintidx v1.0.0/go.mod h1:0qNf/I/CCZXSMhsRsrEPDZ+DkekpKLXAJfsTACwgXLk=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
 github.com/yeya24/promlinter v0.2.0/go.mod h1:u54lkmBOZrpEbQQ6gox2zWKKLKu2SGe+2KOiextY+IA=
-github.com/yihuang/iavl v0.16.1-0.20221214100032-1b51da1adfde h1:3AQFHIYxeTw7wi+xrHlSZhr7oXhwRXMnQWp2zSaJOZQ=
-github.com/yihuang/iavl v0.16.1-0.20221214100032-1b51da1adfde/go.mod h1:qaDgN1K91Zd9xaUVxOdlv57rlcOYd6q0a6t/AddnrJQ=
+github.com/yihuang/iavl v0.16.1-0.20221215040939-befecd7bd7ea h1:bgpxl9gTALjEFAhAS60WN6KR9P6snDSLkMBp4I05mjU=
+github.com/yihuang/iavl v0.16.1-0.20221215040939-befecd7bd7ea/go.mod h1:qaDgN1K91Zd9xaUVxOdlv57rlcOYd6q0a6t/AddnrJQ=
 github.com/yihuang/tm-db v0.0.0-20221214103931-cba57f0ac8ca h1:4Dvj4plI7hzE2v5f8Nh1XqEbGKmDmL2hlLitGnHyJkE=
 github.com/yihuang/tm-db v0.0.0-20221214103931-cba57f0ac8ca/go.mod h1:byQDzFkZV1syXr/ReXS808NxA2xvyuuVgXOJ/088L6I=
 github.com/yudai/gojsondiff v1.0.0/go.mod h1:AY32+k2cwILAkW1fbgxQ5mUmMiZFgLIV+FBNExI05xg=
