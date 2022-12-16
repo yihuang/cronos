@@ -317,6 +317,11 @@ func newSSTFileWriter() *gorocksdb.SSTFileWriter {
 	envOpts := gorocksdb.NewDefaultEnvOptions()
 	opts := gorocksdb.NewDefaultOptions()
 	opts.SetCompression(gorocksdb.ZSTDCompression)
+
+	blkOpts := gorocksdb.NewDefaultBlockBasedTableOptions()
+	blkOpts.SetBlockSize(32 * 1024)
+	opts.SetBlockBasedTableFactory(blkOpts)
+
 	compressOpts := gorocksdb.NewDefaultCompressionOptions()
 	compressOpts.MaxDictBytes = 112640 // 110k
 	compressOpts.Level = 12
