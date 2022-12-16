@@ -195,7 +195,7 @@ replace (
 	github.com/cosmos/gorocksdb => github.com/yihuang/gorocksdb v1.2.1-0.20221215151045-cf18f9764829
 
 	// https://github.com/yihuang/iavl/tree/dump_changeset
-	github.com/cosmos/iavl => github.com/yihuang/iavl v0.16.1-0.20221215040939-befecd7bd7ea
+	github.com/cosmos/iavl => github.com/yihuang/iavl v0.16.1-0.20221214100032-1b51da1adfde
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
 	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.1-cronos
 

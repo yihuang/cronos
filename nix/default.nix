@@ -54,7 +54,7 @@ import sources.nixpkgs {
     (_: pkgs: {
       rocksdb = (pkgs.rocksdb.override { enableJemalloc = true; }).overrideAttrs (old: rec {
         pname = "rocksdb";
-        version = "6.29.5";
+        version = "7.7.3";
         src = sources.rocksdb;
       });
     })
