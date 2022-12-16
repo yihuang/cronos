@@ -70,30 +70,12 @@
         "type": "github"
       }
     },
-    "rocksdb-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1665515906,
-        "narHash": "sha256-Np3HPTZYzyoPOKL0xgsLzcvOkceFiEQd+1nyGbg4BHo=",
-        "owner": "facebook",
-        "repo": "rocksdb",
-        "rev": "eb9a80fe1f18017b4d7f4084e8f2554f12234822",
-        "type": "github"
-      },
-      "original": {
-        "owner": "facebook",
-        "ref": "v7.7.3",
-        "repo": "rocksdb",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
         "gomod2nix": "gomod2nix",
         "nix-bundle-exe": "nix-bundle-exe",
-        "nixpkgs": "nixpkgs",
-        "rocksdb-src": "rocksdb-src"
+        "nixpkgs": "nixpkgs"
       }
     }
   },
