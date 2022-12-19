@@ -320,7 +320,9 @@ func newSSTFileWriter() *gorocksdb.SSTFileWriter {
 
 	blkOpts := gorocksdb.NewDefaultBlockBasedTableOptions()
 	blkOpts.SetBlockSize(32 * 1024)
-	blkOpts.SetFilterPolicy(gorocksdb.NewBloomFilter(10))
+	blkOpts.SetFilterPolicy(gorocksdb.NewRibbonFilter(9.9))
+	blkOpts.SetIndexType(gorocksdb.KTwoLevelIndexSearchIndexType)
+	blkOpts.SetPartitionFilters(true)
 	opts.SetBlockBasedTableFactory(blkOpts)
 	opts.SetOptimizeFiltersForHits(true)
 

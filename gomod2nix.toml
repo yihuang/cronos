@@ -105,8 +105,8 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
   [mod."github.com/cosmos/gorocksdb"]
-    version = "v1.2.1-0.20221215151045-cf18f9764829"
-    hash = "sha256-gPMvH6RQmKxRshA70y6VNNOFaT9nUq/IElaOtOYDfz8="
+    version = "v1.2.1-0.20221219072949-48f2d01275ec"
+    hash = "sha256-DL2HiKCKTLMz4qGHVDJvG1rFr16T0najq0MDE4VbHZA="
     replaced = "github.com/yihuang/gorocksdb"
   [mod."github.com/cosmos/iavl"]
     version = "v0.16.1-0.20221214100032-1b51da1adfde"
