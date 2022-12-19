@@ -2365,8 +2365,8 @@ github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:
 github.com/yagipy/maintidx v1.0.0/go.mod h1:0qNf/I/CCZXSMhsRsrEPDZ+DkekpKLXAJfsTACwgXLk=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
 github.com/yeya24/promlinter v0.2.0/go.mod h1:u54lkmBOZrpEbQQ6gox2zWKKLKu2SGe+2KOiextY+IA=
-github.com/yihuang/gorocksdb v1.2.1-0.20221219072949-48f2d01275ec h1:ss4n15YVsnEYYGN0qdcAfQ4eMrR+l1XYaHOi5MgBPaA=
-github.com/yihuang/gorocksdb v1.2.1-0.20221219072949-48f2d01275ec/go.mod h1:aaKvKItm514hKfNJpUJXnnOWeBnk2GL4+Qw9NHizILw=
+github.com/yihuang/gorocksdb v1.2.1-0.20221219091236-fe4dd186870a h1:8Ztj/1k1t/CRL2P4+oATBoSRaJ8sJ5J7aa9w5ad5hxQ=
+github.com/yihuang/gorocksdb v1.2.1-0.20221219091236-fe4dd186870a/go.mod h1:aaKvKItm514hKfNJpUJXnnOWeBnk2GL4+Qw9NHizILw=
 github.com/yihuang/iavl v0.16.1-0.20221214100032-1b51da1adfde h1:3AQFHIYxeTw7wi+xrHlSZhr7oXhwRXMnQWp2zSaJOZQ=
 github.com/yihuang/iavl v0.16.1-0.20221214100032-1b51da1adfde/go.mod h1:qaDgN1K91Zd9xaUVxOdlv57rlcOYd6q0a6t/AddnrJQ=
 github.com/yihuang/tm-db v0.0.0-20221215054416-169dd13d168d h1:+vcAJKdnEH+nyc3BSoHLxWWY0z/IsLhA9Xk2qiVM+94=
