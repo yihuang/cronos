@@ -10,8 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/edsrzf/mmap-go"
-
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/gorocksdb"
@@ -96,7 +94,7 @@ func DumpFileChangeSetCmd() *cobra.Command {
 				}
 			}
 
-			var sizeBuf [binary.MaxVarintLen64]byte
+			var versionHeader [16]byte
 			tree := iavl.NewImmutableTree(db, cacheSize, true)
 			return tree.TraverseStateChanges(int64(startVersion), int64(endVersion), func(version int64, changeSet *iavl.ChangeSet) error {
 				bz, err := proto.Marshal(changeSet)
@@ -104,12 +102,10 @@ func DumpFileChangeSetCmd() *cobra.Command {
 					return err
 				}
 
-				n := binary.PutUvarint(sizeBuf[:], uint64(version))
-				writer.Write(sizeBuf[:n])
+				binary.BigEndian.PutUint64(versionHeader[:8], uint64(version))
+				binary.PutUvarint(versionHeader[8:16], uint64(len(bz)))
 
-				n = binary.PutUvarint(sizeBuf[:], uint64(len(bz)))
-				writer.Write(sizeBuf[:n])
-
+				writer.Write(versionHeader[:])
 				writer.Write(bz)
 				return nil
 			})
@@ -216,12 +212,6 @@ func ConvertPlainToSSTCmd() *cobra.Command {
 			}
 			defer fp.Close()
 
-			data, err := mmap.Map(fp, mmap.RDONLY, 0)
-			if err != nil {
-				return err
-			}
-			defer data.Unmap()
-
 			w := newSSTFileWriter()
 			defer w.Destroy()
 
@@ -229,15 +219,14 @@ func ConvertPlainToSSTCmd() *cobra.Command {
 				return err
 			}
 
-			offset, err := readPlainFile(data, func(version int64, changeSet *iavl.ChangeSet) error {
+			offset, err := readPlainFile(fp, func(version int64, changeSet *iavl.ChangeSet) error {
 				return writeChangeSetToSST(w, version, changeSet)
 			})
-			if err != nil {
+			if err == io.ErrUnexpectedEOF {
+				// incomplete end of file, we'll output a warning and process the completed versions.
+				fmt.Fprintln(os.Stderr, "file incomplete, the completed versions are processed, the last completed file offset: %d\n", offset)
+			} else if err != nil {
 				return err
-			}
-
-			if offset != len(data) {
-				fmt.Println("file not complete, last completed offset:", offset)
 			}
 
 			return w.Finish()
@@ -246,44 +235,56 @@ func ConvertPlainToSSTCmd() *cobra.Command {
 	return cmd
 }
 
-func readPlainFile(data []byte, fn func(version int64, changeSet *iavl.ChangeSet) error) (int, error) {
-	if bytes.Compare(data[:8], VersionDBMagic) != 0 {
+func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.ChangeSet) error) (int, error) {
+	var (
+		err             error
+		fileMagic       [8]byte
+		versionHeader   [16]byte
+		lastValidOffset int
+	)
+
+	if _, err := io.ReadFull(input, fileMagic[:]); err != nil {
+		if err != io.EOF {
+			return 0, err
+		}
+		// treat empty file as success
+		return 0, nil
+	}
+	if bytes.Compare(fileMagic[:], VersionDBMagic) != 0 {
 		return 0, errors.New("invalid file magic header")
 	}
 
-	offset := 8
-	tmp := offset
-
-	for offset < len(data) {
-		version, n := binary.Uvarint(data[tmp : tmp+binary.MaxVarintLen64])
-		if n <= 0 {
-			return offset, fmt.Errorf("read version fail: %d", n)
-		}
-		tmp += n
-
-		usize, n := binary.Uvarint(data[tmp : tmp+binary.MaxVarintLen64])
-		if n <= 0 {
-			return offset, fmt.Errorf("read size fail: %d", n)
-		}
-		tmp += n
-
-		size := int(usize)
-		if tmp+size > len(data) {
+	lastValidOffset = 8
+	for {
+		if _, err = io.ReadFull(input, versionHeader[:]); err != nil {
 			break
 		}
+		version := binary.BigEndian.Uint64(versionHeader[:8])
+		size := int(binary.BigEndian.Uint64(versionHeader[8:16]))
+
 		var changeSet iavl.ChangeSet
-		if err := proto.Unmarshal(data[tmp:tmp+size], &changeSet); err != nil {
-			return offset, err
+
+		buf := make([]byte, size)
+		if _, err = io.ReadFull(input, buf[:]); err != nil {
+			break
 		}
 
-		if err := fn(int64(version), &changeSet); err != nil {
-			return offset, err
+		if err = proto.Unmarshal(buf[:], &changeSet); err != nil {
+			return lastValidOffset, err
 		}
 
-		tmp += size
-		offset = tmp
+		if err = fn(int64(version), &changeSet); err != nil {
+			return lastValidOffset, err
+		}
+
+		lastValidOffset += size + 16
 	}
-	return offset, nil
+
+	if err != io.EOF {
+		return lastValidOffset, err
+	}
+
+	return lastValidOffset, nil
 }
 
 func writeChangeSetToSST(w *gorocksdb.SSTFileWriter, version int64, changeSet *iavl.ChangeSet) error {
