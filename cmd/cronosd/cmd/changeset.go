@@ -157,7 +157,7 @@ func DumpFileChangeSetCmd() *cobra.Command {
 	cmd.Flags().Int(flagEndVersion, 0, "The end version, exclusive")
 	cmd.Flags().String(flagOutput, "-", "Output file, default to stdout")
 	cmd.Flags().Int(flagConcurrency, runtime.NumCPU(), "Number concurrent goroutines to parallelize the work")
-	cmd.Flags().Int(server.FlagIAVLCacheSize, 7812500, "size of the iavl tree cache")
+	cmd.Flags().Int(server.FlagIAVLCacheSize, 781250, "size of the iavl tree cache")
 	return cmd
 }
 
