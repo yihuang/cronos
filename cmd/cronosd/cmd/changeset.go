@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -25,8 +24,6 @@ const (
 	flagEndVersion   = "end-version"
 	flagOutput       = "output"
 )
-
-var VersionDBMagic = []byte("VERDB000")
 
 func ChangeSetGroupCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -89,9 +86,6 @@ func DumpFileChangeSetCmd() *cobra.Command {
 				defer bufWriter.Flush()
 
 				writer = bufWriter
-				if _, err = writer.Write(VersionDBMagic); err != nil {
-					return err
-				}
 			}
 
 			var versionHeader [16]byte
@@ -238,23 +232,11 @@ func ConvertPlainToSSTCmd() *cobra.Command {
 func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.ChangeSet) error) (int, error) {
 	var (
 		err             error
-		fileMagic       [8]byte
 		versionHeader   [16]byte
 		lastValidOffset int
 	)
 
-	if _, err := io.ReadFull(input, fileMagic[:]); err != nil {
-		if err != io.EOF {
-			return 0, err
-		}
-		// treat empty file as success
-		return 0, nil
-	}
-	if bytes.Compare(fileMagic[:], VersionDBMagic) != 0 {
-		return 0, errors.New("invalid file magic header")
-	}
-
-	lastValidOffset = 8
+	lastValidOffset = 0
 	for {
 		if _, err = io.ReadFull(input, versionHeader[:]); err != nil {
 			break
