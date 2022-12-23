@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -19,10 +20,13 @@ import (
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tm-db"
+	"github.com/tidwall/btree"
 	"google.golang.org/protobuf/proto"
 )
 
 const (
+	TimestampSize = 8
+
 	flagStartVersion = "start-version"
 	flagEndVersion   = "end-version"
 	flagOutput       = "output"
@@ -39,6 +43,7 @@ func ChangeSetGroupCmd() *cobra.Command {
 		DumpSSTChangeSetCmd(),
 		IngestSSTCmd(),
 		ConvertPlainToSSTCmd(),
+		ConvertPlainToSSTTSCmd(),
 		PrintPlainFileCmd(),
 	)
 	return cmd
@@ -198,7 +203,7 @@ func DumpSSTChangeSetCmd() *cobra.Command {
 				return errors.New("output file is not specified")
 			}
 
-			w := newSSTFileWriter()
+			w := newSSTFileWriter(false)
 			defer w.Destroy()
 
 			if err := w.Open(output); err != nil {
@@ -250,20 +255,26 @@ func ConvertPlainToSSTCmd() *cobra.Command {
 			plainFile := args[0]
 			sstFile := args[1]
 
-			fp, err := os.Open(plainFile)
-			if err != nil {
-				return err
+			var reader io.Reader
+			if plainFile == "-" {
+				reader = os.Stdin
+			} else {
+				fp, err := os.Open(plainFile)
+				if err != nil {
+					return err
+				}
+				defer fp.Close()
+				reader = fp
 			}
-			defer fp.Close()
 
-			w := newSSTFileWriter()
+			w := newSSTFileWriter(false)
 			defer w.Destroy()
 
 			if err := w.Open(sstFile); err != nil {
 				return err
 			}
 
-			offset, err := readPlainFile(fp, func(version int64, changeSet *iavl.ChangeSet) error {
+			offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
 				return writeChangeSetToSST(w, version, changeSet)
 			})
 			if err == io.ErrUnexpectedEOF {
@@ -272,6 +283,72 @@ func ConvertPlainToSSTCmd() *cobra.Command {
 			} else if err != nil {
 				return err
 			}
+
+			return w.Finish()
+		},
+	}
+	return cmd
+}
+
+func ConvertPlainToSSTTSCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "plain-to-sst-ts plain-input sst-output",
+		Short: "Convert plain file format to rocksdb sst file, using user timestamp feature of rocksdb",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			plainFile := args[0]
+			sstFile := args[1]
+
+			var reader io.Reader
+			if plainFile == "-" {
+				reader = os.Stdin
+			} else {
+				fp, err := os.Open(plainFile)
+				if err != nil {
+					return err
+				}
+				defer fp.Close()
+				reader = fp
+			}
+
+			w := newSSTFileWriter(true)
+			defer w.Destroy()
+
+			sorted := btree.NewBTreeGOptions(btreeItemLess, btree.Options{
+				NoLocks: true,
+			})
+
+			offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
+				var ts [TimestampSize]byte
+				binary.BigEndian.PutUint64(ts[:], uint64(version))
+				for _, pair := range changeSet.Pairs {
+					sorted.Set(btreeItem{
+						ts:    ts,
+						key:   pair.Key,
+						value: pair.Value,
+					})
+				}
+				return nil
+			})
+
+			if err == io.ErrUnexpectedEOF {
+				// incomplete end of file, we'll output a warning and process the completed versions.
+				fmt.Fprintf(os.Stderr, "file incomplete, the completed versions are processed, the last completed file offset: %d\n", offset)
+			} else if err != nil {
+				return err
+			}
+
+			fmt.Fprintln(os.Stderr, "start writing sst file", sstFile)
+			if err := w.Open(sstFile); err != nil {
+				return err
+			}
+			sorted.Scan(func(item btreeItem) bool {
+				if err := w.PutWithTS(item.key, item.ts[:], item.value); err != nil {
+					fmt.Fprintf(os.Stderr, "sst writer fail: %w", err)
+					return false
+				}
+				return true
+			})
 
 			return w.Finish()
 		},
@@ -422,10 +499,23 @@ func openDBReadOnly(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	}
 }
 
-func newSSTFileWriter() *grocksdb.SSTFileWriter {
+func newSSTFileWriter(enableUserTS bool) *grocksdb.SSTFileWriter {
 	envOpts := grocksdb.NewDefaultEnvOptions()
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetCompression(grocksdb.ZSTDCompression)
+	if enableUserTS {
+		opts.SetComparator(grocksdb.NewComparatorWithTimestamp(
+			"default-ts", TimestampSize, bytes.Compare, bytes.Compare, func(a []byte, aHasTs bool, b []byte, bHasTs bool) int {
+				if aHasTs {
+					a = a[:len(a)-TimestampSize]
+				}
+				if bHasTs {
+					b = b[:len(b)-TimestampSize]
+				}
+				return bytes.Compare(a, b)
+			},
+		))
+	}
 
 	blkOpts := grocksdb.NewDefaultBlockBasedTableOptions()
 	blkOpts.SetBlockSize(32 * 1024)
@@ -460,4 +550,21 @@ func splitWorkLoad(workers int, full Range) []Range {
 		chunks = append(chunks, Range{Start: i, End: end})
 	}
 	return chunks
+}
+
+type btreeItem struct {
+	ts    [8]byte
+	key   []byte
+	value []byte
+}
+
+func btreeItemLess(i, j btreeItem) bool {
+	switch bytes.Compare(i.key, j.key) {
+	case -1:
+		return true
+	case 1:
+		return false
+	default:
+		return binary.BigEndian.Uint64(i.ts[:]) < binary.BigEndian.Uint64(j.ts[:])
+	}
 }

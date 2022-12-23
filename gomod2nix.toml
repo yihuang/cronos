@@ -466,6 +466,9 @@ schema = 3
     version = "v0.0.0-20221223014825-64db9113ab50"
     hash = "sha256-qIbgJ6yt+5A0M3CabuNeeSDZlwXWu+kNHTMuJLBhEQc="
     replaced = "github.com/yihuang/tm-db"
+  [mod."github.com/tidwall/btree"]
+    version = "v1.6.0"
+    hash = "sha256-H4S46Yk3tVfOtrEhVWUrF4S1yWYmzU43W80HlzS9rcY="
   [mod."github.com/tklauser/go-sysconf"]
     version = "v0.3.10"
     hash = "sha256-Zf2NsgM9+HeM949vCce4HQtSbfUiFpeiQ716yKcFyx4="
