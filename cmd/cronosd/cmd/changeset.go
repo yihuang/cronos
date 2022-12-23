@@ -12,8 +12,8 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
-	"github.com/cosmos/gorocksdb"
 	"github.com/cosmos/iavl"
+	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tm-db"
@@ -184,13 +184,13 @@ func IngestSSTCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dbPath := args[0]
-			opts := gorocksdb.NewDefaultOptions()
+			opts := grocksdb.NewDefaultOptions()
 			opts.SetCreateIfMissing(true)
-			db, err := gorocksdb.OpenDb(opts, dbPath)
+			db, err := grocksdb.OpenDb(opts, dbPath)
 			if err != nil {
 				return err
 			}
-			ingestOpts := gorocksdb.NewDefaultIngestExternalFileOptions()
+			ingestOpts := grocksdb.NewDefaultIngestExternalFileOptions()
 			return db.IngestExternalFile(args[1:], ingestOpts)
 		},
 	}
@@ -287,7 +287,7 @@ func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.Chang
 	return lastValidOffset, nil
 }
 
-func writeChangeSetToSST(w *gorocksdb.SSTFileWriter, version int64, changeSet *iavl.ChangeSet) error {
+func writeChangeSetToSST(w *grocksdb.SSTFileWriter, version int64, changeSet *iavl.ChangeSet) error {
 	versionBuf := make([]byte, 8)
 	binary.BigEndian.PutUint64(versionBuf[:], uint64(version))
 	for _, pair := range changeSet.Pairs {
@@ -302,37 +302,39 @@ func writeChangeSetToSST(w *gorocksdb.SSTFileWriter, version int64, changeSet *i
 }
 
 func openDBReadOnly(home string, backendType dbm.BackendType) (dbm.DB, error) {
-	if backendType != dbm.RocksDBBackend {
-		return nil, errors.New("only support rocksdb backend")
+	dataDir := filepath.Join(home, "data")
+	if backendType == dbm.RocksDBBackend {
+		dbDir := filepath.Join(dataDir, "application.db")
+		opts := grocksdb.NewDefaultOptions()
+		raw, err := grocksdb.OpenDbForReadOnly(opts, dbDir, false)
+		if err != nil {
+			return nil, err
+		}
+		return dbm.NewRocksDBWithRawDB(raw), nil
+	} else {
+		return dbm.NewDB("application", backendType, dataDir)
 	}
-	dataDir := filepath.Join(home, "data", "application.db")
-	opts := gorocksdb.NewDefaultOptions()
-	raw, err := gorocksdb.OpenDbForReadOnly(opts, dataDir, false)
-	if err != nil {
-		return nil, err
-	}
-	return dbm.NewRocksDBWithRawDB(raw), nil
 }
 
-func newSSTFileWriter() *gorocksdb.SSTFileWriter {
-	envOpts := gorocksdb.NewDefaultEnvOptions()
-	opts := gorocksdb.NewDefaultOptions()
-	opts.SetCompression(gorocksdb.ZSTDCompression)
+func newSSTFileWriter() *grocksdb.SSTFileWriter {
+	envOpts := grocksdb.NewDefaultEnvOptions()
+	opts := grocksdb.NewDefaultOptions()
+	opts.SetCompression(grocksdb.ZSTDCompression)
 
-	blkOpts := gorocksdb.NewDefaultBlockBasedTableOptions()
+	blkOpts := grocksdb.NewDefaultBlockBasedTableOptions()
 	blkOpts.SetBlockSize(32 * 1024)
-	blkOpts.SetFilterPolicy(gorocksdb.NewRibbonFilter(9.9))
-	blkOpts.SetIndexType(gorocksdb.KTwoLevelIndexSearchIndexType)
+	blkOpts.SetFilterPolicy(grocksdb.NewRibbonFilterPolicy(9.9))
+	blkOpts.SetIndexType(grocksdb.KTwoLevelIndexSearchIndexType)
 	blkOpts.SetPartitionFilters(true)
-	blkOpts.SetDataBlockIndexType(gorocksdb.KDataBlockBinaryAndHash)
+	blkOpts.SetDataBlockIndexType(grocksdb.KDataBlockIndexTypeBinarySearchAndHash)
 	opts.SetBlockBasedTableFactory(blkOpts)
 	opts.SetOptimizeFiltersForHits(true)
 
-	compressOpts := gorocksdb.NewDefaultCompressionOptions()
+	compressOpts := grocksdb.NewDefaultCompressionOptions()
 	compressOpts.MaxDictBytes = 112640 // 110k
 	compressOpts.Level = 12
 	opts.SetCompressionOptions(compressOpts)
-	zstdOpts := gorocksdb.NewZSTDCompressionOptions(1, compressOpts.MaxDictBytes*100)
-	opts.SetZSTDCompressionOptions(zstdOpts)
-	return gorocksdb.NewSSTFileWriter(envOpts, opts)
+	opts.SetCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes * 100)
+	opts.SetCompressionOptionsZstdDictTrainer(true)
+	return grocksdb.NewSSTFileWriter(envOpts, opts)
 }

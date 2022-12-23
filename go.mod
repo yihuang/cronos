@@ -6,7 +6,6 @@ require (
 	cosmossdk.io/math v1.0.0-beta.3
 	github.com/armon/go-metrics v0.4.1
 	github.com/cosmos/cosmos-sdk v0.46.7
-	github.com/cosmos/gorocksdb v1.2.0
 	github.com/cosmos/iavl v0.19.4
 	github.com/cosmos/ibc-go/v5 v5.1.0
 	github.com/ethereum/go-ethereum v1.10.19
@@ -15,6 +14,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	github.com/linxGnu/grocksdb v1.7.10
 	github.com/peggyjv/gravity-bridge/module/v2 v2.0.0-20220420162017-838c0d25e974
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/cast v1.5.0
@@ -68,9 +68,8 @@ require (
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
-	github.com/dgraph-io/badger/v2 v2.2007.4 // indirect
+	github.com/dgraph-io/badger/v3 v3.2103.2 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
-	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/dlclark/regexp2 v1.4.1-0.20201116162257-a2a8dda75c91 // indirect
 	github.com/dop251/goja v0.0.0-20220405120441-9037c2b61cbf // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
@@ -90,7 +89,8 @@ require (
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/btree v1.0.1 // indirect
+	github.com/google/btree v1.1.2 // indirect
+	github.com/google/flatbuffers v2.0.0+incompatible // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
@@ -192,7 +192,6 @@ replace (
 	// Ref: https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702
 	github.com/confio/ics23/go => github.com/confio/ics23/go v0.9.0
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.7
-	github.com/cosmos/gorocksdb => github.com/yihuang/gorocksdb v1.2.1-0.20221219091236-fe4dd186870a
 
 	// https://github.com/yihuang/iavl/tree/dump_changeset
 	github.com/cosmos/iavl => github.com/yihuang/iavl v0.16.1-0.20221214100032-1b51da1adfde
@@ -204,12 +203,14 @@ replace (
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
+	github.com/linxGnu/grocksdb => github.com/yihuang/grocksdb v1.7.11-0.20221223014353-a4fa14d1759b
+
 	// TODO: remove when gravity update dependencies
 	github.com/peggyjv/gravity-bridge/module/v2 => github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20220815102151-48275db7e1ee
 	github.com/tendermint/tendermint => github.com/tendermint/tendermint v0.34.24-0.20221110131553-ec471ba27efd
 
-	// https://github.com/yihuang/tm-db/tree/readonly
-	github.com/tendermint/tm-db => github.com/yihuang/tm-db v0.0.0-20221215054416-169dd13d168d
+	// https://github.com/yihuang/tm-db/tree/rocksdb-v7
+	github.com/tendermint/tm-db => github.com/yihuang/tm-db v0.0.0-20221223014825-64db9113ab50
 
 	// TODO: remove after fixed https://github.com/cosmos/cosmos-sdk/issues/11364
 	github.com/zondax/hid => github.com/zondax/hid v0.9.0
