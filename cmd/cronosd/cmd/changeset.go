@@ -344,8 +344,8 @@ func dumpRangeBlocks(writer io.Writer, tree *iavl.ImmutableTree, startVersion, e
 			return err
 		}
 
-		binary.BigEndian.PutUint64(versionHeader[:8], uint64(version))
-		binary.BigEndian.PutUint64(versionHeader[8:16], uint64(len(bz)))
+		binary.LittleEndian.PutUint64(versionHeader[:8], uint64(version))
+		binary.LittleEndian.PutUint64(versionHeader[8:16], uint64(len(bz)))
 
 		writer.Write(versionHeader[:])
 		writer.Write(bz)
@@ -365,8 +365,8 @@ func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.Chang
 		if _, err = io.ReadFull(input, versionHeader[:]); err != nil {
 			break
 		}
-		version := binary.BigEndian.Uint64(versionHeader[:8])
-		size := int(binary.BigEndian.Uint64(versionHeader[8:16]))
+		version := binary.LittleEndian.Uint64(versionHeader[:8])
+		size := int(binary.LittleEndian.Uint64(versionHeader[8:16]))
 		var changeSet iavl.ChangeSet
 		if size > 0 {
 			buf := make([]byte, size)
