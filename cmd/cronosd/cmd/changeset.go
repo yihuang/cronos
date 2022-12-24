@@ -137,7 +137,7 @@ func DumpFileChangeSetCmd() *cobra.Command {
 					end = endVersion
 				}
 				var tasks []*dumpTask
-				for _, work := range splitWorkLoad(concurrency, Range{Start: startVersion, End: endVersion}) {
+				for _, work := range splitWorkLoad(concurrency, Range{Start: i, End: end}) {
 					task := newDumpTask(work)
 					tasksChan <- task
 					tasks = append(tasks, task)
@@ -654,7 +654,7 @@ type chunk struct {
 func (c *chunk) collect(outDir string, zlibLevel int) error {
 	output := filepath.Join(outDir, fmt.Sprintf("block-%d", c.beginVersion))
 	if zlibLevel > 0 {
-		output += ".gz"
+		output += ".zz"
 	}
 
 	fp, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
