@@ -27,10 +27,11 @@ import (
 const (
 	TimestampSize = 8
 
-	flagStartVersion = "start-version"
-	flagEndVersion   = "end-version"
-	flagOutput       = "output"
-	flagConcurrency  = "concurrency"
+	flagStartVersion     = "start-version"
+	flagEndVersion       = "end-version"
+	flagOutput           = "output"
+	flagConcurrency      = "concurrency"
+	flagNoParseChangeset = "no-parse-changeset"
 )
 
 func ChangeSetGroupCmd() *cobra.Command {
@@ -255,7 +256,7 @@ func ConvertPlainToSSTCmd() *cobra.Command {
 			plainFile := args[0]
 			sstFile := args[1]
 
-			var reader io.Reader
+			var reader io.ReadSeeker
 			if plainFile == "-" {
 				reader = os.Stdin
 			} else {
@@ -276,7 +277,7 @@ func ConvertPlainToSSTCmd() *cobra.Command {
 
 			offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
 				return writeChangeSetToSST(w, version, changeSet)
-			})
+			}, true)
 			if err == io.ErrUnexpectedEOF {
 				// incomplete end of file, we'll output a warning and process the completed versions.
 				fmt.Fprintf(os.Stderr, "file incomplete, the completed versions are processed, the last completed file offset: %d\n", offset)
@@ -299,7 +300,7 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 			plainFile := args[0]
 			sstFile := args[1]
 
-			var reader io.Reader
+			var reader io.ReadSeeker
 			if plainFile == "-" {
 				reader = os.Stdin
 			} else {
@@ -329,7 +330,7 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 					})
 				}
 				return nil
-			})
+			}, true)
 
 			if err == io.ErrUnexpectedEOF {
 				// incomplete end of file, we'll output a warning and process the completed versions.
@@ -363,9 +364,16 @@ func PrintPlainFileCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var (
-				err    error
-				reader io.Reader
+				err              error
+				reader           io.ReadSeeker
+				noParseChangeset bool
 			)
+
+			noParseChangeset, err = cmd.Flags().GetBool(flagNoParseChangeset)
+			if err != nil {
+				return err
+			}
+
 			if args[0] == "-" {
 				reader = os.Stdin
 			} else {
@@ -385,7 +393,7 @@ func PrintPlainFileCmd() *cobra.Command {
 					fmt.Println(js)
 				}
 				return nil
-			})
+			}, !noParseChangeset)
 			if err == io.ErrUnexpectedEOF {
 				// incomplete end of file, we'll output a warning and process the completed versions.
 				fmt.Fprintf(os.Stderr, "file incomplete, the completed versions are processed, the last completed file offset: %d\n", offset)
@@ -395,6 +403,7 @@ func PrintPlainFileCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().Bool(flagNoParseChangeset, false, "if parse and output the change set content, otherwise only version numbers are outputted")
 	return cmd
 }
 
@@ -430,7 +439,7 @@ func dumpRangeBlocks(writer io.Writer, tree *iavl.ImmutableTree, startVersion, e
 	})
 }
 
-func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.ChangeSet) error) (int, error) {
+func readPlainFile(input io.ReadSeeker, fn func(version int64, changeSet *iavl.ChangeSet) error, parseChangeset bool) (int, error) {
 	var (
 		err             error
 		versionHeader   [16]byte
@@ -446,13 +455,22 @@ func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.Chang
 		size := int(binary.LittleEndian.Uint64(versionHeader[8:16]))
 		var changeSet iavl.ChangeSet
 		if size > 0 {
-			buf := make([]byte, size)
-			if _, err = io.ReadFull(input, buf[:]); err != nil {
-				break
-			}
+			if parseChangeset {
+				buf := make([]byte, size)
+				if _, err = io.ReadFull(input, buf[:]); err != nil {
+					break
+				}
 
-			if err = proto.Unmarshal(buf[:], &changeSet); err != nil {
-				return lastValidOffset, err
+				if err = proto.Unmarshal(buf[:], &changeSet); err != nil {
+					return lastValidOffset, err
+				}
+			} else {
+				if written, err := io.CopyN(ioutil.Discard, input, int64(size)); err != nil {
+					if err == io.EOF && written < int64(size) {
+						err = io.ErrUnexpectedEOF
+					}
+					break
+				}
 			}
 		}
 
