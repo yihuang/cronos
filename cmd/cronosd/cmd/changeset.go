@@ -159,7 +159,7 @@ func DumpFileChangeSetCmd() *cobra.Command {
 	cmd.Flags().Int(flagConcurrency, runtime.NumCPU(), "Number concurrent goroutines to parallelize the work")
 	cmd.Flags().Int(server.FlagIAVLCacheSize, 781250, "size of the iavl tree cache")
 	cmd.Flags().Int(flagChunkSize, DefaultChunkSize, "size of the block chunk")
-	cmd.Flags().Int(flagZlibLevel, 0, "level of zlib compression, 1: fast, 9: best, default: 0(no compression), if enabled the output file name will have .zz extension")
+	cmd.Flags().Int(flagZlibLevel, 6, "level of zlib compression, 0: plain data, 1: fast, 9: best, default: 6, if not 0 the output file name will have .zz extension")
 	return cmd
 }
 
