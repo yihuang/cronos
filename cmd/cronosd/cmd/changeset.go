@@ -320,7 +320,7 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 
 			offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
 				var ts [TimestampSize]byte
-				binary.BigEndian.PutUint64(ts[:], uint64(version))
+				binary.LittleEndian.PutUint64(ts[:], uint64(version))
 				for _, pair := range changeSet.Pairs {
 					sorted.Set(btreeItem{
 						ts:    ts,
@@ -504,17 +504,7 @@ func newSSTFileWriter(enableUserTS bool) *grocksdb.SSTFileWriter {
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetCompression(grocksdb.ZSTDCompression)
 	if enableUserTS {
-		opts.SetComparator(grocksdb.NewComparatorWithTimestamp(
-			"default-ts", TimestampSize, bytes.Compare, bytes.Compare, func(a []byte, aHasTs bool, b []byte, bHasTs bool) int {
-				if aHasTs {
-					a = a[:len(a)-TimestampSize]
-				}
-				if bHasTs {
-					b = b[:len(b)-TimestampSize]
-				}
-				return bytes.Compare(a, b)
-			},
-		))
+		opts.SetComparator(createTSComparator())
 	}
 
 	blkOpts := grocksdb.NewDefaultBlockBasedTableOptions()
@@ -533,6 +523,47 @@ func newSSTFileWriter(enableUserTS bool) *grocksdb.SSTFileWriter {
 	opts.SetCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes * 100)
 	opts.SetCompressionOptionsZstdDictTrainer(true)
 	return grocksdb.NewSSTFileWriter(envOpts, opts)
+}
+
+func compareTS(bz1 []byte, bz2 []byte) int {
+	ts1 := binary.LittleEndian.Uint64(bz1)
+	ts2 := binary.LittleEndian.Uint64(bz2)
+	switch {
+	case ts1 < ts2:
+		return -1
+	case ts1 > ts2:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func compare(a []byte, b []byte) int {
+	ret := compareWithoutTS(a, true, b, true)
+	if ret != 0 {
+		return ret
+	}
+	// Compare timestamp.
+	// For the same user key with different timestamps, larger (newer) timestamp
+	// comes first.
+	return -compareTS(a[len(a)-TimestampSize:], b[len(b)-TimestampSize:])
+}
+
+func compareWithoutTS(a []byte, aHasTs bool, b []byte, bHasTs bool) int {
+	if aHasTs {
+		a = a[:len(a)-TimestampSize]
+	}
+	if bHasTs {
+		b = b[:len(b)-TimestampSize]
+	}
+	return bytes.Compare(a, b)
+}
+
+// createTSComparator should be compatible with builtin timestamp comparator.
+func createTSComparator() *grocksdb.Comparator {
+	return grocksdb.NewComparatorWithTimestamp(
+		"leveldb.BytewiseComparator.u64ts", TimestampSize, compare, compareTS, compareWithoutTS,
+	)
 }
 
 type Range struct {
@@ -565,6 +596,9 @@ func btreeItemLess(i, j btreeItem) bool {
 	case 1:
 		return false
 	default:
-		return binary.BigEndian.Uint64(i.ts[:]) < binary.BigEndian.Uint64(j.ts[:])
+		// Compare timestamp.
+		// For the same user key with different timestamps, larger (newer) timestamp
+		// comes first.
+		return binary.LittleEndian.Uint64(j.ts[:]) < binary.LittleEndian.Uint64(i.ts[:])
 	}
 }
