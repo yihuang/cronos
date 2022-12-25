@@ -153,7 +153,7 @@ func DumpFileChangeSetCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().Int64(flagStartVersion, 1, "The start version")
+	cmd.Flags().Int64(flagStartVersion, 0, "The start version")
 	cmd.Flags().Int64(flagEndVersion, 0, "The end version, exclusive, default to latestVersion+1")
 	cmd.Flags().String(flagOutput, "-", "Output file, default to stdout")
 	cmd.Flags().Int(flagConcurrency, runtime.NumCPU(), "Number concurrent goroutines to parallelize the work")
@@ -420,7 +420,7 @@ func dumpRangeBlocksWorker(dir string, tree *iavl.ImmutableTree, startVersion, e
 
 func dumpRangeBlocks(writer io.Writer, tree *iavl.ImmutableTree, startVersion, endVersion int64) error {
 	var versionHeader [16]byte
-	return tree.TraverseStateChanges(int64(startVersion), int64(endVersion), func(version int64, changeSet *iavl.ChangeSet) error {
+	return tree.TraverseStateChanges(startVersion, endVersion, func(version int64, changeSet *iavl.ChangeSet) error {
 		bz, err := proto.Marshal(changeSet)
 		if err != nil {
 			return err
