@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -37,6 +38,8 @@ const (
 	flagZlibLevel        = "zlib-level"
 
 	DefaultChunkSize = 1000000
+
+	CompressedFileSuffix = ".zz"
 )
 
 func ChangeSetGroupCmd() *cobra.Command {
@@ -252,36 +255,25 @@ func ConvertPlainToSSTCmd() *cobra.Command {
 			plainFile := args[0]
 			sstFile := args[1]
 
-			var reader io.ReadSeeker
-			if plainFile == "-" {
-				reader = os.Stdin
-			} else {
-				fp, err := os.Open(plainFile)
-				if err != nil {
+			return withPlainInput(plainFile, func(reader io.Reader) error {
+				w := newSSTFileWriter(false)
+				defer w.Destroy()
+
+				if err := w.Open(sstFile); err != nil {
 					return err
 				}
-				defer fp.Close()
-				reader = fp
-			}
 
-			w := newSSTFileWriter(false)
-			defer w.Destroy()
-
-			if err := w.Open(sstFile); err != nil {
-				return err
-			}
-
-			offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
-				return writeChangeSetToSST(w, version, changeSet)
-			}, true)
-			if err == io.ErrUnexpectedEOF {
-				// incomplete end of file, we'll output a warning and process the completed versions.
-				fmt.Fprintf(os.Stderr, "file incomplete, the completed versions are processed, the last completed file offset: %d\n", offset)
-			} else if err != nil {
-				return err
-			}
-
-			return w.Finish()
+				offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
+					return writeChangeSetToSST(w, version, changeSet)
+				}, true)
+				if err == io.ErrUnexpectedEOF {
+					// incomplete end of file, we'll output a warning and process the completed versions.
+					fmt.Fprintf(os.Stderr, "file incomplete, the completed versions are processed, the last completed file offset: %d\n", offset)
+				} else if err != nil {
+					return err
+				}
+				return w.Finish()
+			})
 		},
 	}
 	return cmd
@@ -296,49 +288,44 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 			plainFile := args[0]
 			sstFile := args[1]
 
-			var reader io.ReadSeeker
-			if plainFile == "-" {
-				reader = os.Stdin
-			} else {
-				fp, err := os.Open(plainFile)
-				if err != nil {
-					return err
-				}
-				defer fp.Close()
-				reader = fp
-			}
-
-			w := newSSTFileWriter(true)
-			defer w.Destroy()
-
 			sorted := btree.NewBTreeGOptions(btreeItemLess, btree.Options{
 				NoLocks: true,
 			})
 
-			offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
-				var ts [TimestampSize]byte
-				binary.LittleEndian.PutUint64(ts[:], uint64(version))
-				for _, pair := range changeSet.Pairs {
-					sorted.Set(btreeItem{
-						ts:    ts,
-						key:   pair.Key,
-						value: pair.Value,
-					})
+			if err := withPlainInput(plainFile, func(reader io.Reader) error {
+				offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
+					var ts [TimestampSize]byte
+					binary.LittleEndian.PutUint64(ts[:], uint64(version))
+					for _, pair := range changeSet.Pairs {
+						sorted.Set(btreeItem{
+							ts:    ts,
+							key:   pair.Key,
+							value: pair.Value,
+						})
+					}
+					return nil
+				}, true)
+
+				if err == io.ErrUnexpectedEOF {
+					// incomplete end of file, we'll output a warning and process the completed versions.
+					fmt.Fprintf(os.Stderr, "file incomplete, the completed versions are processed, the last completed file offset: %d\n", offset)
+				} else if err != nil {
+					return err
 				}
 				return nil
-			}, true)
-
-			if err == io.ErrUnexpectedEOF {
-				// incomplete end of file, we'll output a warning and process the completed versions.
-				fmt.Fprintf(os.Stderr, "file incomplete, the completed versions are processed, the last completed file offset: %d\n", offset)
-			} else if err != nil {
+			}); err != nil {
 				return err
 			}
 
-			fmt.Fprintln(os.Stderr, "start writing sst file", sstFile)
+			// fmt.Fprintln(os.Stderr, "start writing sst file", sstFile)
+
+			w := newSSTFileWriter(true)
+			defer w.Destroy()
+
 			if err := w.Open(sstFile); err != nil {
 				return err
 			}
+
 			sorted.Scan(func(item btreeItem) bool {
 				if err := w.PutWithTS(item.key, item.ts[:], item.value); err != nil {
 					fmt.Fprintf(os.Stderr, "sst writer fail: %w", err)
@@ -359,44 +346,32 @@ func PrintPlainFileCmd() *cobra.Command {
 		Short: "Pretty-print content of plain changeset file",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var (
-				err              error
-				reader           io.ReadSeeker
-				noParseChangeset bool
-			)
-
-			noParseChangeset, err = cmd.Flags().GetBool(flagNoParseChangeset)
+			noParseChangeset, err := cmd.Flags().GetBool(flagNoParseChangeset)
 			if err != nil {
 				return err
 			}
 
-			if args[0] == "-" {
-				reader = os.Stdin
-			} else {
-				reader, err = os.Open(args[0])
-				if err != nil {
+			marshaler := jsonpb.Marshaler{}
+			return withPlainInput(args[0], func(reader io.Reader) error {
+				offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
+					fmt.Printf("version: %d\n", version)
+					for _, pair := range changeSet.Pairs {
+						js, err := marshaler.MarshalToString(pair)
+						if err != nil {
+							return err
+						}
+						fmt.Println(js)
+					}
+					return nil
+				}, !noParseChangeset)
+				if err == io.ErrUnexpectedEOF {
+					// incomplete end of file, we'll output a warning and process the completed versions.
+					fmt.Fprintf(os.Stderr, "file incomplete, the completed versions are processed, the last completed file offset: %d\n", offset)
+				} else if err != nil {
 					return err
 				}
-			}
-			marshaler := jsonpb.Marshaler{}
-			offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
-				fmt.Printf("version: %d\n", version)
-				for _, pair := range changeSet.Pairs {
-					js, err := marshaler.MarshalToString(pair)
-					if err != nil {
-						return err
-					}
-					fmt.Println(js)
-				}
 				return nil
-			}, !noParseChangeset)
-			if err == io.ErrUnexpectedEOF {
-				// incomplete end of file, we'll output a warning and process the completed versions.
-				fmt.Fprintf(os.Stderr, "file incomplete, the completed versions are processed, the last completed file offset: %d\n", offset)
-			} else if err != nil {
-				return err
-			}
-			return nil
+			})
 		},
 	}
 	cmd.Flags().Bool(flagNoParseChangeset, false, "if parse and output the change set content, otherwise only version numbers are outputted")
@@ -435,7 +410,29 @@ func dumpRangeBlocks(writer io.Writer, tree *iavl.ImmutableTree, startVersion, e
 	})
 }
 
-func readPlainFile(input io.ReadSeeker, fn func(version int64, changeSet *iavl.ChangeSet) error, parseChangeset bool) (int, error) {
+func withPlainInput(plainFile string, fn func(io.Reader) error) error {
+	var reader io.Reader
+	if plainFile == "-" {
+		reader = os.Stdin
+	} else {
+		fp, err := os.Open(plainFile)
+		if err != nil {
+			return err
+		}
+		defer fp.Close()
+		reader = fp
+		if strings.HasSuffix(plainFile, CompressedFileSuffix) {
+			zreader, err := zlib.NewReader(fp)
+			if err != nil {
+				return err
+			}
+			reader = zreader
+		}
+	}
+	return fn(reader)
+}
+
+func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.ChangeSet) error, parseChangeset bool) (int, error) {
 	var (
 		err             error
 		versionHeader   [16]byte
@@ -654,7 +651,7 @@ type chunk struct {
 func (c *chunk) collect(outDir string, zlibLevel int) error {
 	output := filepath.Join(outDir, fmt.Sprintf("block-%d", c.beginVersion))
 	if zlibLevel > 0 {
-		output += ".zz"
+		output += CompressedFileSuffix
 	}
 
 	fp, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
