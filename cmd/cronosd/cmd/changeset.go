@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -50,11 +49,9 @@ func ChangeSetGroupCmd() *cobra.Command {
 	}
 	cmd.AddCommand(
 		DumpFileChangeSetCmd(),
-		DumpSSTChangeSetCmd(),
-		IngestSSTCmd(),
-		ConvertPlainToSSTCmd(),
-		ConvertPlainToSSTTSCmd(),
 		PrintPlainFileCmd(),
+		ConvertPlainToSSTTSCmd(),
+		IngestSSTCmd(),
 	)
 	return cmd
 }
@@ -167,66 +164,6 @@ func DumpFileChangeSetCmd() *cobra.Command {
 	return cmd
 }
 
-func DumpSSTChangeSetCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "dump-sst [store]",
-		Short: "Extract changeset from iavl versions and save to rocksdb sst file",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := server.GetServerContextFromCmd(cmd)
-			if err := ctx.Viper.BindPFlags(cmd.Flags()); err != nil {
-				return err
-			}
-
-			db, err := openDBReadOnly(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
-			if err != nil {
-				return err
-			}
-			prefix := []byte(fmt.Sprintf("s/k:%s/", args[0]))
-			db = dbm.NewPrefixDB(db, prefix)
-
-			cacheSize := cast.ToInt(ctx.Viper.Get(server.FlagIAVLCacheSize))
-
-			startVersion, err := cmd.Flags().GetInt(flagStartVersion)
-			if err != nil {
-				return err
-			}
-			endVersion, err := cmd.Flags().GetInt(flagEndVersion)
-			if err != nil {
-				return err
-			}
-
-			output, err := cmd.Flags().GetString(flagOutput)
-			if err != nil {
-				return err
-			}
-			if len(output) == 0 {
-				return errors.New("output file is not specified")
-			}
-
-			w := newSSTFileWriter(false)
-			defer w.Destroy()
-
-			if err := w.Open(output); err != nil {
-				return err
-			}
-
-			tree := iavl.NewImmutableTree(db, cacheSize, true)
-			if err := tree.TraverseStateChanges(int64(startVersion), int64(endVersion), func(version int64, changeSet *iavl.ChangeSet) error {
-				return writeChangeSetToSST(w, version, changeSet)
-			}); err != nil {
-				return err
-			}
-
-			return w.Finish()
-		},
-	}
-	cmd.Flags().Int(flagStartVersion, 1, "The start version")
-	cmd.Flags().Int(flagEndVersion, 0, "The end version, exclusive")
-	cmd.Flags().String(flagOutput, "", "Output file, default to stdout")
-	return cmd
-}
-
 func IngestSSTCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ingest-sst db-path file1.sst file2.sst ...",
@@ -250,39 +187,6 @@ func IngestSSTCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Bool(flagMoveFiles, false, "move sst files instead of copy them")
-	return cmd
-}
-
-func ConvertPlainToSSTCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "plain-to-sst plain-input sst-output",
-		Short: "Convert plain file format to rocksdb sst file",
-		Args:  cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			plainFile := args[0]
-			sstFile := args[1]
-
-			return withPlainInput(plainFile, func(reader io.Reader) error {
-				w := newSSTFileWriter(false)
-				defer w.Destroy()
-
-				if err := w.Open(sstFile); err != nil {
-					return err
-				}
-
-				offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
-					return writeChangeSetToSST(w, version, changeSet)
-				}, true)
-				if err == io.ErrUnexpectedEOF {
-					// incomplete end of file, we'll output a warning and process the completed versions.
-					fmt.Fprintf(os.Stderr, "file incomplete, the completed versions are processed, the last completed file offset: %d\n", offset)
-				} else if err != nil {
-					return err
-				}
-				return w.Finish()
-			})
-		},
-	}
 	return cmd
 }
 
@@ -486,20 +390,6 @@ func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.Chang
 	}
 
 	return lastValidOffset, nil
-}
-
-func writeChangeSetToSST(w *grocksdb.SSTFileWriter, version int64, changeSet *iavl.ChangeSet) error {
-	versionBuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(versionBuf[:], uint64(version))
-	for _, pair := range changeSet.Pairs {
-		key := make([]byte, 8+len(pair.Key))
-		copy(key[:8], versionBuf)
-		copy(key[8:], pair.Key)
-		// deletion will have empty values
-		w.Add(key, pair.Value)
-	}
-
-	return nil
 }
 
 func openDBReadOnly(home string, backendType dbm.BackendType) (dbm.DB, error) {
