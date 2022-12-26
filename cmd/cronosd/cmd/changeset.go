@@ -228,24 +228,25 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 				return err
 			}
 
-			// fmt.Fprintln(os.Stderr, "start writing sst file", sstFile)
+			if sorted.Len() > 0 {
+				w := newSSTFileWriter(true)
+				defer w.Destroy()
 
-			w := newSSTFileWriter(true)
-			defer w.Destroy()
-
-			if err := w.Open(sstFile); err != nil {
-				return err
-			}
-
-			sorted.Scan(func(item btreeItem) bool {
-				if err := w.PutWithTS(item.key, item.ts[:], item.value); err != nil {
-					fmt.Fprintf(os.Stderr, "sst writer fail: %w", err)
-					return false
+				if err := w.Open(sstFile); err != nil {
+					return err
 				}
-				return true
-			})
 
-			return w.Finish()
+				sorted.Scan(func(item btreeItem) bool {
+					if err := w.PutWithTS(item.key, item.ts[:], item.value); err != nil {
+						fmt.Fprintf(os.Stderr, "sst writer fail: %w", err)
+						return false
+					}
+					return true
+				})
+
+				return w.Finish()
+			}
+			return nil
 		},
 	}
 	return cmd
