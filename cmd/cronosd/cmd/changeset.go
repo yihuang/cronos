@@ -36,6 +36,7 @@ const (
 	flagNoParseChangeset = "no-parse-changeset"
 	flagChunkSize        = "chunk-size"
 	flagZlibLevel        = "zlib-level"
+	flagMoveFiles        = "move-files"
 
 	DefaultChunkSize = 1000000
 
@@ -233,16 +234,22 @@ func IngestSSTCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dbPath := args[0]
-			opts := grocksdb.NewDefaultOptions()
+			moveFiles, err := cmd.Flags().GetBool(flagMoveFiles)
+			if err != nil {
+				return err
+			}
+			opts := newRocksDBOptions(true)
 			opts.SetCreateIfMissing(true)
 			db, err := grocksdb.OpenDb(opts, dbPath)
 			if err != nil {
 				return err
 			}
 			ingestOpts := grocksdb.NewDefaultIngestExternalFileOptions()
+			ingestOpts.SetMoveFiles(moveFiles)
 			return db.IngestExternalFile(args[1:], ingestOpts)
 		},
 	}
+	cmd.Flags().Bool(flagMoveFiles, false, "move sst files instead of copy them")
 	return cmd
 }
 
@@ -510,8 +517,7 @@ func openDBReadOnly(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	}
 }
 
-func newSSTFileWriter(enableUserTS bool) *grocksdb.SSTFileWriter {
-	envOpts := grocksdb.NewDefaultEnvOptions()
+func newRocksDBOptions(enableUserTS bool) *grocksdb.Options {
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetCompression(grocksdb.ZSTDCompression)
 	if enableUserTS {
@@ -533,7 +539,12 @@ func newSSTFileWriter(enableUserTS bool) *grocksdb.SSTFileWriter {
 	opts.SetCompressionOptions(compressOpts)
 	opts.SetCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes * 100)
 	opts.SetCompressionOptionsZstdDictTrainer(true)
-	return grocksdb.NewSSTFileWriter(envOpts, opts)
+	return opts
+}
+
+func newSSTFileWriter(enableUserTS bool) *grocksdb.SSTFileWriter {
+	envOpts := grocksdb.NewDefaultEnvOptions()
+	return grocksdb.NewSSTFileWriter(envOpts, newRocksDBOptions(enableUserTS))
 }
 
 func compareTS(bz1 []byte, bz2 []byte) int {
