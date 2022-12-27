@@ -38,11 +38,14 @@ const (
 	flagZlibLevel        = "zlib-level"
 	flagBatchSize        = "batch-size"
 	flagMoveFiles        = "move-files"
+	flagStore            = "store"
 
 	DefaultChunkSize = 1000000
 
 	CompressedFileSuffix = ".zz"
 	SSTFileExtension     = ".sst"
+
+	StorePrefixTmp = "s/k:%s/"
 )
 
 func ChangeSetGroupCmd() *cobra.Command {
@@ -75,7 +78,7 @@ func DumpFileChangeSetCmd() *cobra.Command {
 				return err
 			}
 			store := args[0]
-			prefix := []byte(fmt.Sprintf("s/k:%s/", store))
+			prefix := []byte(fmt.Sprintf(StorePrefixTmp, store))
 			db = dbm.NewPrefixDB(db, prefix)
 
 			cacheSize := cast.ToInt(ctx.Viper.Get(server.FlagIAVLCacheSize))
@@ -207,7 +210,17 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 				return err
 			}
 
-			sstBatchWriter, err := newTSSSTWriter(batchSize, sstFile)
+			store, err := cmd.Flags().GetString(flagStore)
+			if err != nil {
+				return err
+			}
+
+			var prefix []byte
+			if len(store) > 0 {
+				prefix = []byte(fmt.Sprintf(StorePrefixTmp, store))
+			}
+
+			sstBatchWriter, err := newTSSSTWriter(batchSize, sstFile, prefix)
 			if err != nil {
 				return err
 			}
@@ -229,6 +242,7 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int(flagBatchSize, 0, "split the input into batches, output separate sst files for each batch, default: 0 (disable batching).")
+	cmd.Flags().String(flagStore, "", "store name, the keys are prefixed with \"s/k:{store}/\"")
 	return cmd
 }
 
@@ -575,6 +589,7 @@ type tsSSTWriter struct {
 	batchSize int
 	fileName  string
 	batch     *btree.BTreeG[btreeItem]
+	prefix    []byte
 
 	batchSeq int
 }
@@ -587,7 +602,7 @@ func newBTree() *btree.BTreeG[btreeItem] {
 	)
 }
 
-func newTSSSTWriter(batchSize int, fileName string) (tsSSTWriter, error) {
+func newTSSSTWriter(batchSize int, fileName string, prefix []byte) (tsSSTWriter, error) {
 	if !strings.HasSuffix(fileName, SSTFileExtension) {
 		return tsSSTWriter{}, errors.New("invalid sst filename")
 	}
@@ -636,7 +651,11 @@ func (w tsSSTWriter) writeBatch(sstFile string) error {
 	}
 
 	w.batch.Scan(func(item btreeItem) bool {
-		if err := sstWriter.PutWithTS(item.key, item.ts[:], item.value); err != nil {
+		key := item.key
+		if len(w.prefix) > 0 {
+			key = cloneAppend(w.prefix, item.key)
+		}
+		if err := sstWriter.PutWithTS(key, item.ts[:], item.value); err != nil {
 			fmt.Fprintf(os.Stderr, "sst writer fail: %w", err)
 			return false
 		}
@@ -658,4 +677,11 @@ func (w tsSSTWriter) Finalize() error {
 
 	// write the final batch
 	return w.writeBatch(w.batchFileName())
+}
+
+func cloneAppend(bz []byte, tail []byte) (res []byte) {
+	res = make([]byte, len(bz)+len(tail))
+	copy(res, bz)
+	copy(res[len(bz):], tail)
+	return
 }
