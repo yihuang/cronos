@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -35,11 +36,13 @@ const (
 	flagNoParseChangeset = "no-parse-changeset"
 	flagChunkSize        = "chunk-size"
 	flagZlibLevel        = "zlib-level"
+	flagBatchSize        = "batch-size"
 	flagMoveFiles        = "move-files"
 
 	DefaultChunkSize = 1000000
 
 	CompressedFileSuffix = ".zz"
+	SSTFileExtension     = ".sst"
 )
 
 func ChangeSetGroupCmd() *cobra.Command {
@@ -199,23 +202,21 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 			plainFile := args[0]
 			sstFile := args[1]
 
-			sorted := btree.NewBTreeGOptions(btreeItemLess, btree.Options{
-				NoLocks: true,
-			})
+			batchSize, err := cmd.Flags().GetInt(flagBatchSize)
+			if err != nil {
+				return err
+			}
 
-			if err := withPlainInput(plainFile, func(reader io.Reader) error {
-				offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) error {
-					var ts [TimestampSize]byte
-					binary.LittleEndian.PutUint64(ts[:], uint64(version))
-					for _, pair := range changeSet.Pairs {
-						sorted.Set(btreeItem{
-							ts:    ts,
-							key:   pair.Key,
-							value: pair.Value,
-						})
-					}
-					return nil
-				}, true)
+			sstBatchWriter, err := newTSSSTWriter(batchSize, sstFile)
+			if err != nil {
+				return err
+			}
+
+			return withPlainInput(plainFile, func(reader io.Reader) error {
+				offset, err := readPlainFile(reader, sstBatchWriter.AddChangeSet, true)
+				if err := sstBatchWriter.Finalize(); err != nil {
+					return err
+				}
 
 				if err == io.ErrUnexpectedEOF {
 					// incomplete end of file, we'll output a warning and process the completed versions.
@@ -224,31 +225,10 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 					return err
 				}
 				return nil
-			}); err != nil {
-				return err
-			}
-
-			if sorted.Len() > 0 {
-				w := newSSTFileWriter(true)
-				defer w.Destroy()
-
-				if err := w.Open(sstFile); err != nil {
-					return err
-				}
-
-				sorted.Scan(func(item btreeItem) bool {
-					if err := w.PutWithTS(item.key, item.ts[:], item.value); err != nil {
-						fmt.Fprintf(os.Stderr, "sst writer fail: %w", err)
-						return false
-					}
-					return true
-				})
-
-				return w.Finish()
-			}
-			return nil
+			})
 		},
 	}
+	cmd.Flags().Int(flagBatchSize, 0, "split the input into batches, output separate sst files for each batch, default: 0 (disable batching).")
 	return cmd
 }
 
@@ -589,4 +569,93 @@ func (c *chunk) collect(outDir string, zlibLevel int) error {
 	}
 
 	return nil
+}
+
+type tsSSTWriter struct {
+	batchSize int
+	fileName  string
+	batch     *btree.BTreeG[btreeItem]
+
+	batchSeq int
+}
+
+func newBTree() *btree.BTreeG[btreeItem] {
+	return btree.NewBTreeGOptions(
+		btreeItemLess, btree.Options{
+			NoLocks: true,
+		},
+	)
+}
+
+func newTSSSTWriter(batchSize int, fileName string) (tsSSTWriter, error) {
+	if !strings.HasSuffix(fileName, SSTFileExtension) {
+		return tsSSTWriter{}, errors.New("invalid sst filename")
+	}
+	return tsSSTWriter{
+		batchSize: batchSize,
+		fileName:  fileName,
+		batch:     newBTree(),
+	}, nil
+}
+
+func (w tsSSTWriter) batchFileName() string {
+	stem := w.fileName[:len(w.fileName)-len(SSTFileExtension)]
+	return stem + fmt.Sprintf("-%d", w.batchSeq) + SSTFileExtension
+}
+
+func (w tsSSTWriter) AddChangeSet(version int64, changeSet *iavl.ChangeSet) error {
+	if len(changeSet.Pairs) == 0 {
+		return nil
+	}
+	var ts [TimestampSize]byte
+	binary.LittleEndian.PutUint64(ts[:], uint64(version))
+	for _, pair := range changeSet.Pairs {
+		w.batch.Set(btreeItem{
+			ts:    ts,
+			key:   pair.Key,
+			value: pair.Value,
+		})
+	}
+	if w.batchSize > 0 && w.batch.Len() > w.batchSize {
+		if err := w.writeBatch(w.batchFileName()); err != nil {
+			return err
+		}
+		w.batch = newBTree()
+		w.batchSeq++
+	}
+	return nil
+}
+
+func (w tsSSTWriter) writeBatch(sstFile string) error {
+	// write out a batch
+	sstWriter := newSSTFileWriter(true)
+	defer sstWriter.Destroy()
+
+	if err := sstWriter.Open(sstFile); err != nil {
+		return err
+	}
+
+	w.batch.Scan(func(item btreeItem) bool {
+		if err := sstWriter.PutWithTS(item.key, item.ts[:], item.value); err != nil {
+			fmt.Fprintf(os.Stderr, "sst writer fail: %w", err)
+			return false
+		}
+		return true
+	})
+
+	return sstWriter.Finish()
+}
+
+func (w tsSSTWriter) Finalize() error {
+	if w.batch.Len() == 0 {
+		return nil
+	}
+
+	if w.batchSize == 0 {
+		// write to normal filename
+		return w.writeBatch(w.fileName)
+	}
+
+	// write the final batch
+	return w.writeBatch(w.batchFileName())
 }
