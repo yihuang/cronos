@@ -1,4 +1,5 @@
-{ lib, stdenv
+{ lib
+, stdenv
 , fetchFromGitHub
 , fetchpatch
 , cmake
@@ -8,20 +9,22 @@
 , snappy
 , zlib
 , zstd
-, enableJemalloc ? false, jemalloc
+, enableJemalloc ? false
+, jemalloc
 , enableLite ? false
 , enableShared ? !stdenv.hostPlatform.isStatic
+, sse42Support ? stdenv.hostPlatform.sse4_2Support
 }:
 
 stdenv.mkDerivation rec {
   pname = "rocksdb";
-  version = "7.7.3";
+  version = "7.8.3";
 
   src = fetchFromGitHub {
     owner = "facebook";
     repo = pname;
     rev = "v${version}";
-    sha256 = "sha256-Np3HPTZYzyoPOKL0xgsLzcvOkceFiEQd+1nyGbg4BHo=";
+    sha256 = "sha256-HVLxLltOZ0e9BCekynjdc+f/fTS9vz15GZVKB77uDXo=";
   };
 
   nativeBuildInputs = [ cmake ninja ];
@@ -54,9 +57,7 @@ stdenv.mkDerivation rec {
     "-DWITH_GFLAGS=0"
     "-DUSE_RTTI=1"
     "-DROCKSDB_INSTALL_ON_WINDOWS=YES" # harmless elsewhere
-    (lib.optional
-        (stdenv.hostPlatform.isx86 && stdenv.hostPlatform.isLinux)
-        "-DFORCE_SSE42=1")
+    (lib.optional sse42Support "-DFORCE_SSE42=1")
     (lib.optional enableLite "-DROCKSDB_LITE=1")
     "-DFAIL_ON_WARNINGS=${if stdenv.hostPlatform.isMinGW then "NO" else "YES"}"
   ] ++ lib.optional (!enableShared) "-DROCKSDB_BUILD_SHARED=0";
@@ -69,7 +70,7 @@ stdenv.mkDerivation rec {
     cp tools/{ldb,sst_dump} $tools/bin/
   '' + lib.optionalString stdenv.isDarwin ''
     ls -1 $tools/bin/* | xargs -I{} install_name_tool -change "@rpath/librocksdb.7.dylib" $out/lib/librocksdb.dylib {}
-  '' + lib.optionalString stdenv.isLinux ''
+  '' + lib.optionalString (stdenv.isLinux && enableShared) ''
     ls -1 $tools/bin/* | xargs -I{} patchelf --set-rpath $out/lib:${stdenv.cc.cc.lib}/lib {}
   '';
 
