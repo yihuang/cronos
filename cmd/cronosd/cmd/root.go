@@ -46,6 +46,7 @@ import (
 	ethermint "github.com/evmos/ethermint/types"
 
 	"github.com/crypto-org-chain/cronos/app"
+	versiondbclient "github.com/crypto-org-chain/cronos/versiondb/client"
 	// this line is used by starport scaffolding # stargate/root/import
 )
 
@@ -128,7 +129,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		debug.Cmd(),
 		config.Cmd(),
 		pruning.PruningCmd(a.newApp),
-		ChangeSetGroupCmd(),
+		versiondbclient.ChangeSetGroupCmd(),
 		// this line is used by starport scaffolding # stargate/root/commands
 	)
 

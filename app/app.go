@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/crypto-org-chain/cronos/versiondb"
+	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -352,6 +354,34 @@ func New(
 		os.Exit(1)
 	}
 
+	// configure state listening capabilities using AppOptions
+	// we are doing nothing with the returned streamingServices and waitGroup in this case
+	streamers := cast.ToStringSlice(appOpts.Get("store.streamers"))
+	for _, streamerName := range streamers {
+		if streamerName == "versiondb" {
+			dataDir := filepath.Join(homePath, "data", "versiondb")
+			if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
+				panic(err)
+			}
+			versionDB, err := tsrocksdb.NewStore(dataDir)
+			if err != nil {
+				panic(err)
+			}
+
+			// default to exposing all
+			exposeStoreKeys := make([]storetypes.StoreKey, 0, len(keys))
+			for _, storeKey := range keys {
+				exposeStoreKeys = append(exposeStoreKeys, storeKey)
+			}
+			service := versiondb.NewStreamingService(versionDB, exposeStoreKeys)
+			bApp.SetStreamingService(service)
+			qms := versiondb.NewMultiStore(versionDB, exposeStoreKeys)
+			qms.MountTransientStores(tkeys)
+			qms.MountMemoryStores(memKeys)
+			bApp.SetQueryMultiStore(qms)
+			break
+		}
+	}
 	app := &App{
 		BaseApp:           bApp,
 		cdc:               cdc,

@@ -104,6 +104,9 @@ schema = 3
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
+  [mod."github.com/cosmos/gorocksdb"]
+    version = "v1.2.0"
+    hash = "sha256-209TcVuXc5s/TcOvNlaQ1HEJAUDTEK3nxPhs+d8TEcY="
   [mod."github.com/cosmos/iavl"]
     version = "v0.16.1-0.20221214100032-1b51da1adfde"
     hash = "sha256-CWEslCOMf5TerOTnPgmQebDeTYS+EjO/zu850Pqugco="
@@ -132,12 +135,15 @@ schema = 3
   [mod."github.com/desertbit/timer"]
     version = "v0.0.0-20180107155436-c41aec40b27f"
     hash = "sha256-abLOtEcomAqCWLphd2X6WkD/ED764w6sa6unox4BXss="
-  [mod."github.com/dgraph-io/badger/v3"]
-    version = "v3.2103.2"
-    hash = "sha256-F6pvsaSKwXOl9RfnUQFqAl6xpCVu9+rthQgOxhKVk1g="
+  [mod."github.com/dgraph-io/badger/v2"]
+    version = "v2.2007.4"
+    hash = "sha256-+KwqZJZpViv8S3TqUVvPXrFoMgWFyS3NoLsi4RR5fGk="
   [mod."github.com/dgraph-io/ristretto"]
     version = "v0.1.0"
     hash = "sha256-01jneg1+1x8tTfUTBZ+6mHkQaqXVnPYxLJyJhJQcvt4="
+  [mod."github.com/dgryski/go-farm"]
+    version = "v0.0.0-20200201041132-a6ae2369ad13"
+    hash = "sha256-aOMlPwFY36bLiiIx4HonbCYRAhagk5N6HAWN7Ygif+E="
   [mod."github.com/dlclark/regexp2"]
     version = "v1.4.1-0.20201116162257-a2a8dda75c91"
     hash = "sha256-VNNMZIc7NkDg3DVLnqeJNM/KZqkkaZu2/HTLBL8X2xE="
@@ -213,9 +219,6 @@ schema = 3
   [mod."github.com/google/btree"]
     version = "v1.1.2"
     hash = "sha256-K7V2obq3pLM71Mg0vhhHtZ+gtaubwXPQx3xcIyZDCjM="
-  [mod."github.com/google/flatbuffers"]
-    version = "v2.0.0+incompatible"
-    hash = "sha256-4Db9FdOL60Da4H1+K4Qv02w4omxdsh3uzpmY1vtqHeA="
   [mod."github.com/google/go-cmp"]
     version = "v0.5.9"
     hash = "sha256-lQc4O00R3QSMGs9LP8Sy7A9kj0cqV5rrUdpnGeipIyg="
@@ -463,9 +466,8 @@ schema = 3
     hash = "sha256-wdkMisD8IPwZJ0mbtVg9J6A+R/zYkpVK7e47OR53BCU="
     replaced = "github.com/tendermint/tendermint"
   [mod."github.com/tendermint/tm-db"]
-    version = "v0.0.0-20221223014825-64db9113ab50"
-    hash = "sha256-qIbgJ6yt+5A0M3CabuNeeSDZlwXWu+kNHTMuJLBhEQc="
-    replaced = "github.com/yihuang/tm-db"
+    version = "v0.6.7"
+    hash = "sha256-hl/3RrBrpkk2zA6dmrNlIYKs1/GfqegSscDSkA5Pjlo="
   [mod."github.com/tidwall/btree"]
     version = "v1.6.0"
     hash = "sha256-H4S46Yk3tVfOtrEhVWUrF4S1yWYmzU43W80HlzS9rcY="
