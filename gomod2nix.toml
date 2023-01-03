@@ -104,9 +104,12 @@ schema = 3
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
+  [mod."github.com/cosmos/gogoproto"]
+    version = "v1.4.2"
+    hash = "sha256-hOY+mhPDYWcSYSdth2AW7IONdgicqQir0z/1XrXt9NY="
   [mod."github.com/cosmos/iavl"]
-    version = "v0.16.1-0.20221214100032-1b51da1adfde"
-    hash = "sha256-CWEslCOMf5TerOTnPgmQebDeTYS+EjO/zu850Pqugco="
+    version = "v0.16.1-0.20230103093747-1b1febf19315"
+    hash = "sha256-/Q2V4Vgxef8oBaLy3/P/S2crZh554KIbkYAss1hEMFg="
     replaced = "github.com/yihuang/iavl"
   [mod."github.com/cosmos/ibc-go/v5"]
     version = "v5.1.0"

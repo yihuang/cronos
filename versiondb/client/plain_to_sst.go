@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cosmos/iavl"
+	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
@@ -123,7 +123,7 @@ func (w tsSSTWriter) batchFileName() string {
 	return stem + fmt.Sprintf("-%d", w.batchSeq) + SSTFileExtension
 }
 
-func (w tsSSTWriter) AddChangeSet(version int64, changeSet *iavl.ChangeSet) error {
+func (w tsSSTWriter) AddChangeSet(version int64, changeSet *versiondb.ChangeSet) error {
 	if len(changeSet.Pairs) == 0 {
 		return nil
 	}

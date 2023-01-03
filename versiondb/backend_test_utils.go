@@ -124,7 +124,7 @@ func testBasics(t *testing.T, store VersionStore) {
 	require.Equal(t, value1, value)
 }
 
-type KVPair struct {
+type kvPair struct {
 	Key   []byte
 	Value []byte
 }
@@ -132,37 +132,37 @@ type KVPair struct {
 func testIterator(t *testing.T, store VersionStore) {
 	SetupTestDB(t, store)
 
-	expItems := [][]KVPair{
+	expItems := [][]kvPair{
 		{
-			KVPair{[]byte("delete-in-block2"), []byte("1")},
-			KVPair{[]byte("modify-in-block2"), []byte("1")},
-			KVPair{[]byte("re-add-in-block3"), []byte("1")},
-			KVPair{[]byte("z-genesis-only"), []byte("2")},
+			kvPair{[]byte("delete-in-block2"), []byte("1")},
+			kvPair{[]byte("modify-in-block2"), []byte("1")},
+			kvPair{[]byte("re-add-in-block3"), []byte("1")},
+			kvPair{[]byte("z-genesis-only"), []byte("2")},
 		},
 		{
-			KVPair{[]byte("add-in-block1"), []byte("1")},
-			KVPair{[]byte("delete-in-block2"), []byte("1")},
-			KVPair{[]byte("modify-in-block2"), []byte("1")},
-			KVPair{[]byte("z-genesis-only"), []byte("2")},
+			kvPair{[]byte("add-in-block1"), []byte("1")},
+			kvPair{[]byte("delete-in-block2"), []byte("1")},
+			kvPair{[]byte("modify-in-block2"), []byte("1")},
+			kvPair{[]byte("z-genesis-only"), []byte("2")},
 		},
 		{
-			KVPair{[]byte("add-in-block1"), []byte("1")},
-			KVPair{[]byte("add-in-block2"), []byte("1")},
-			KVPair{[]byte("modify-in-block2"), []byte("2")},
-			KVPair{[]byte("z-genesis-only"), []byte("2")},
+			kvPair{[]byte("add-in-block1"), []byte("1")},
+			kvPair{[]byte("add-in-block2"), []byte("1")},
+			kvPair{[]byte("modify-in-block2"), []byte("2")},
+			kvPair{[]byte("z-genesis-only"), []byte("2")},
 		},
 		{
-			KVPair{[]byte("add-in-block1"), []byte("1")},
-			KVPair{[]byte("add-in-block2"), []byte("1")},
-			KVPair{[]byte("modify-in-block2"), []byte("2")},
-			KVPair{[]byte("re-add-in-block3"), []byte("2")},
-			KVPair{[]byte("z-genesis-only"), []byte("2")},
+			kvPair{[]byte("add-in-block1"), []byte("1")},
+			kvPair{[]byte("add-in-block2"), []byte("1")},
+			kvPair{[]byte("modify-in-block2"), []byte("2")},
+			kvPair{[]byte("re-add-in-block3"), []byte("2")},
+			kvPair{[]byte("z-genesis-only"), []byte("2")},
 		},
 		{
-			KVPair{[]byte("add-in-block1"), []byte("1")},
-			KVPair{[]byte("add-in-block2"), []byte("1")},
-			KVPair{[]byte("modify-in-block2"), []byte("2")},
-			KVPair{[]byte("z-genesis-only"), []byte("2")},
+			kvPair{[]byte("add-in-block1"), []byte("1")},
+			kvPair{[]byte("add-in-block2"), []byte("1")},
+			kvPair{[]byte("modify-in-block2"), []byte("2")},
+			kvPair{[]byte("z-genesis-only"), []byte("2")},
 		},
 	}
 	for i, exp := range expItems {
@@ -257,10 +257,10 @@ func testHeightInFuture(t *testing.T, store VersionStore) {
 	require.NoError(t, err)
 }
 
-func consumeIterator(it dbm.Iterator) []KVPair {
-	var result []KVPair
+func consumeIterator(it dbm.Iterator) []kvPair {
+	var result []kvPair
 	for ; it.Valid(); it.Next() {
-		result = append(result, KVPair{it.Key(), it.Value()})
+		result = append(result, kvPair{it.Key(), it.Value()})
 	}
 	it.Close()
 	return result

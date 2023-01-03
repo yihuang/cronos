@@ -745,6 +745,7 @@ github.com/cosmos/cosmos-sdk/db v1.0.0-beta.1/go.mod h1:JUMM2MxF9wuwzRWZJjb8BjXs
 github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d/go.mod h1:tSxLoYXyBmiFeKpvmq4dzayMdCjCnu8uqmCysIGBT2Y=
 github.com/cosmos/go-bip39 v1.0.0 h1:pcomnQdrdH22njcAatO0yWojsUnCO3y2tNoV1cb6hHY=
 github.com/cosmos/go-bip39 v1.0.0/go.mod h1:RNJv0H/pOIVgxw6KS7QeX2a0Uo0aKUlfhZ4xuwvCdJw=
+github.com/cosmos/gogoproto v1.4.2 h1:UeGRcmFW41l0G0MiefWhkPEVEwvu78SZsHBvI78dAYw=
 github.com/cosmos/gogoproto v1.4.2/go.mod h1:cLxOsn1ljAHSV527CHOtaIP91kK6cCrZETRBrkzItWU=
 github.com/cosmos/gorocksdb v1.2.0/go.mod h1:aaKvKItm514hKfNJpUJXnnOWeBnk2GL4+Qw9NHizILw=
 github.com/cosmos/ibc-go/v5 v5.0.0-beta1/go.mod h1:9mmcbzuidgX7nhafIKng/XhXAHDEnRqDjGy/60W1cvg=
@@ -2368,8 +2369,8 @@ github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G
 github.com/yeya24/promlinter v0.2.0/go.mod h1:u54lkmBOZrpEbQQ6gox2zWKKLKu2SGe+2KOiextY+IA=
 github.com/yihuang/grocksdb v1.7.11-0.20221223014353-a4fa14d1759b h1:wMYs9akWGUHRJZDsnmN0gLJWHI9UZ+nmCxyk7bqWiwY=
 github.com/yihuang/grocksdb v1.7.11-0.20221223014353-a4fa14d1759b/go.mod h1:0hTf+iA+GOr0jDX4CgIYyJZxqOH9XlBh6KVj8+zmF34=
-github.com/yihuang/iavl v0.16.1-0.20221214100032-1b51da1adfde h1:3AQFHIYxeTw7wi+xrHlSZhr7oXhwRXMnQWp2zSaJOZQ=
-github.com/yihuang/iavl v0.16.1-0.20221214100032-1b51da1adfde/go.mod h1:qaDgN1K91Zd9xaUVxOdlv57rlcOYd6q0a6t/AddnrJQ=
+github.com/yihuang/iavl v0.16.1-0.20230103093747-1b1febf19315 h1:AXwjK/MdsQ/e/beygqg5lxpxBTkHq+GOUlhgKoVFqFQ=
+github.com/yihuang/iavl v0.16.1-0.20230103093747-1b1febf19315/go.mod h1:qaDgN1K91Zd9xaUVxOdlv57rlcOYd6q0a6t/AddnrJQ=
 github.com/yihuang/tm-db v0.0.0-20230103092224-3f21822ed03e h1:2aFuR5EgQO3C/MHXqLUAlvmQRJ9xuWd9z8VdeqtMsVs=
 github.com/yihuang/tm-db v0.0.0-20230103092224-3f21822ed03e/go.mod h1:QWum/v2n8t5yeFSQu7J2YsrwB7qB3D3RM+snYzAKG5M=
 github.com/yudai/gojsondiff v1.0.0/go.mod h1:AY32+k2cwILAkW1fbgxQ5mUmMiZFgLIV+FBNExI05xg=

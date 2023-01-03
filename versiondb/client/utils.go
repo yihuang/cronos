@@ -2,9 +2,14 @@ package client
 
 import (
 	"compress/zlib"
+	"encoding/binary"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
+
+	"github.com/crypto-org-chain/cronos/versiondb"
+	"github.com/gogo/protobuf/proto"
 )
 
 const (
@@ -31,4 +36,53 @@ func withPlainInput(plainFile string, fn func(io.Reader) error) error {
 		}
 	}
 	return fn(reader)
+}
+
+func readPlainFile(input io.Reader, fn func(version int64, changeSet *versiondb.ChangeSet) error, parseChangeset bool) (int, error) {
+	var (
+		err             error
+		versionHeader   [16]byte
+		lastValidOffset int
+	)
+
+	lastValidOffset = 0
+	for {
+		if _, err = io.ReadFull(input, versionHeader[:]); err != nil {
+			break
+		}
+		version := binary.LittleEndian.Uint64(versionHeader[:8])
+		size := int(binary.LittleEndian.Uint64(versionHeader[8:16]))
+		var changeSet versiondb.ChangeSet
+		if size > 0 {
+			if parseChangeset {
+				buf := make([]byte, size)
+				if _, err = io.ReadFull(input, buf[:]); err != nil {
+					break
+				}
+
+				if err = proto.Unmarshal(buf[:], &changeSet); err != nil {
+					return lastValidOffset, err
+				}
+			} else {
+				if written, err := io.CopyN(ioutil.Discard, input, int64(size)); err != nil {
+					if err == io.EOF && written < int64(size) {
+						err = io.ErrUnexpectedEOF
+					}
+					break
+				}
+			}
+		}
+
+		if err = fn(int64(version), &changeSet); err != nil {
+			return lastValidOffset, err
+		}
+
+		lastValidOffset += size + 16
+	}
+
+	if err != io.EOF {
+		return lastValidOffset, err
+	}
+
+	return lastValidOffset, nil
 }

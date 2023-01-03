@@ -12,14 +12,15 @@ import (
 	"runtime"
 
 	"github.com/cosmos/iavl"
+	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tm-db"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 
+	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
@@ -173,7 +174,19 @@ func dumpRangeBlocksWorker(dir string, tree *iavl.ImmutableTree, startVersion, e
 func dumpRangeBlocks(writer io.Writer, tree *iavl.ImmutableTree, startVersion, endVersion int64) error {
 	var versionHeader [16]byte
 	return tree.TraverseStateChanges(startVersion, endVersion, func(version int64, changeSet *iavl.ChangeSet) error {
-		bz, err := proto.Marshal(changeSet)
+		// convert to protobuf type
+		protoChangeSet := versiondb.ChangeSet{
+			Pairs: make([]*versiondb.KVPair, len(changeSet.Pairs)),
+		}
+		for i, pair := range changeSet.Pairs {
+			protoChangeSet.Pairs[i] = &versiondb.KVPair{
+				Delete: pair.Delete,
+				Key:    pair.Key,
+				Value:  pair.Value,
+			}
+		}
+
+		bz, err := proto.Marshal(&protoChangeSet)
 		if err != nil {
 			return err
 		}
