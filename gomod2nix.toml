@@ -463,8 +463,8 @@ schema = 3
     hash = "sha256-wdkMisD8IPwZJ0mbtVg9J6A+R/zYkpVK7e47OR53BCU="
     replaced = "github.com/tendermint/tendermint"
   [mod."github.com/tendermint/tm-db"]
-    version = "v0.0.0-20221223014825-64db9113ab50"
-    hash = "sha256-qIbgJ6yt+5A0M3CabuNeeSDZlwXWu+kNHTMuJLBhEQc="
+    version = "v0.0.0-20230103092224-3f21822ed03e"
+    hash = "sha256-f0Hv4rxXkh0rAJYboBv03R9C4SLqyFHR6kxcXKS5uTs="
     replaced = "github.com/yihuang/tm-db"
   [mod."github.com/tidwall/btree"]
     version = "v1.6.0"

@@ -2370,8 +2370,8 @@ github.com/yihuang/grocksdb v1.7.11-0.20221223014353-a4fa14d1759b h1:wMYs9akWGUH
 github.com/yihuang/grocksdb v1.7.11-0.20221223014353-a4fa14d1759b/go.mod h1:0hTf+iA+GOr0jDX4CgIYyJZxqOH9XlBh6KVj8+zmF34=
 github.com/yihuang/iavl v0.16.1-0.20221214100032-1b51da1adfde h1:3AQFHIYxeTw7wi+xrHlSZhr7oXhwRXMnQWp2zSaJOZQ=
 github.com/yihuang/iavl v0.16.1-0.20221214100032-1b51da1adfde/go.mod h1:qaDgN1K91Zd9xaUVxOdlv57rlcOYd6q0a6t/AddnrJQ=
-github.com/yihuang/tm-db v0.0.0-20221223014825-64db9113ab50 h1:SCmK24CU8cAN/5E68975v7KdbXU5Ld+dTjcNIqL9ur0=
-github.com/yihuang/tm-db v0.0.0-20221223014825-64db9113ab50/go.mod h1:VHK+GyaG/Jy1Zz+z74pTBT8gqMOF8jmp4CMDDhcJY4M=
+github.com/yihuang/tm-db v0.0.0-20230103092224-3f21822ed03e h1:2aFuR5EgQO3C/MHXqLUAlvmQRJ9xuWd9z8VdeqtMsVs=
+github.com/yihuang/tm-db v0.0.0-20230103092224-3f21822ed03e/go.mod h1:QWum/v2n8t5yeFSQu7J2YsrwB7qB3D3RM+snYzAKG5M=
 github.com/yudai/gojsondiff v1.0.0/go.mod h1:AY32+k2cwILAkW1fbgxQ5mUmMiZFgLIV+FBNExI05xg=
 github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82/go.mod h1:lgjkn3NuSvDfVJdfcVVdX+jpBxNmX4rDAzaS45IcYoM=
 github.com/yudai/pp v2.0.1+incompatible/go.mod h1:PuxR/8QJ7cyCkFp/aUDS+JY727OFEZkTdatxwunjIkc=
