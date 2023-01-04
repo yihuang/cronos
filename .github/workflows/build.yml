@@ -62,6 +62,7 @@ jobs:
           nix profile install nixpkgs#rocksdb
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
+          export LD_LIBRARY_PATH=$HOME/.nix-profile/lib
           make test
         if: "env.GIT_DIFF != ''"
       - name: filter out proto files
