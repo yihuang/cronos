@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -157,7 +156,7 @@ func splitWorkLoad(workers int, full Range) []Range {
 }
 
 func dumpRangeBlocksWorker(dir string, tree *iavl.ImmutableTree, startVersion, endVersion int64) (*os.File, error) {
-	fp, err := ioutil.TempFile(dir, "tmp-*")
+	fp, err := os.CreateTemp(dir, "tmp-*")
 	if err != nil {
 		return nil, err
 	}
@@ -194,8 +193,12 @@ func dumpRangeBlocks(writer io.Writer, tree *iavl.ImmutableTree, startVersion, e
 		binary.LittleEndian.PutUint64(versionHeader[:8], uint64(version))
 		binary.LittleEndian.PutUint64(versionHeader[8:16], uint64(len(bz)))
 
-		writer.Write(versionHeader[:])
-		writer.Write(bz)
+		if _, err := writer.Write(versionHeader[:]); err != nil {
+			return err
+		}
+		if _, err := writer.Write(bz); err != nil {
+			return err
+		}
 		return nil
 	})
 }
@@ -220,7 +223,7 @@ func (dt *dumpTask) run(tree *iavl.ImmutableTree, tmpDir string) {
 		fmt.Fprintf(os.Stderr, "worker failed: start: %d, end: %d, err: %e", dt.work.Start, dt.work.End, err)
 		return
 	}
-	// seek to begining, prepare to read
+	// seek to beginning, prepare to read
 	if _, err := tmpFile.Seek(0, 0); err != nil {
 		fmt.Fprintf(os.Stderr, "seek failed: %e", err)
 		os.Remove(tmpFile.Name())
@@ -262,14 +265,22 @@ func (c *chunk) collect(outDir string, zlibLevel int) error {
 		if !ok {
 			return fmt.Errorf("worker failed: chunk: %d, worker: %d", c.beginVersion, i)
 		}
-		defer func() {
-			tmpFile.Close()
-			os.Remove(tmpFile.Name())
-		}()
-
-		if _, err := io.Copy(writer, tmpFile); err != nil {
+		if err := consumeTmpFile(writer, tmpFile); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func consumeTmpFile(writer io.Writer, tmpFile *os.File) error {
+	defer func() {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+	}()
+
+	if _, err := io.Copy(writer, tmpFile); err != nil {
+		return err
 	}
 
 	return nil

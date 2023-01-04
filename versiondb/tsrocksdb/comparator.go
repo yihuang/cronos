@@ -13,6 +13,7 @@ func CreateTSComparator() *grocksdb.Comparator {
 		"leveldb.BytewiseComparator.u64ts", TimestampSize, compare, compareTS, compareWithoutTS,
 	)
 }
+
 func compareTS(bz1 []byte, bz2 []byte) int {
 	ts1 := binary.LittleEndian.Uint64(bz1)
 	ts2 := binary.LittleEndian.Uint64(bz2)
@@ -37,11 +38,11 @@ func compare(a []byte, b []byte) int {
 	return -compareTS(a[len(a)-TimestampSize:], b[len(b)-TimestampSize:])
 }
 
-func compareWithoutTS(a []byte, aHasTs bool, b []byte, bHasTs bool) int {
-	if aHasTs {
+func compareWithoutTS(a []byte, aHasTS bool, b []byte, bHasTS bool) int {
+	if aHasTS {
 		a = a[:len(a)-TimestampSize]
 	}
-	if bHasTs {
+	if bHasTS {
 		b = b[:len(b)-TimestampSize]
 	}
 	return bytes.Compare(a, b)

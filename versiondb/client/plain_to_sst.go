@@ -107,23 +107,23 @@ func newBTree() *btree.BTreeG[btreeItem] {
 	)
 }
 
-func newTSSSTWriter(batchSize int, fileName string, prefix []byte) (tsSSTWriter, error) {
+func newTSSSTWriter(batchSize int, fileName string, prefix []byte) (*tsSSTWriter, error) {
 	if !strings.HasSuffix(fileName, SSTFileExtension) {
-		return tsSSTWriter{}, errors.New("invalid sst filename")
+		return nil, errors.New("invalid sst filename")
 	}
-	return tsSSTWriter{
+	return &tsSSTWriter{
 		batchSize: batchSize,
 		fileName:  fileName,
 		batch:     newBTree(),
 	}, nil
 }
 
-func (w tsSSTWriter) batchFileName() string {
+func (w *tsSSTWriter) batchFileName() string {
 	stem := w.fileName[:len(w.fileName)-len(SSTFileExtension)]
 	return stem + fmt.Sprintf("-%d", w.batchSeq) + SSTFileExtension
 }
 
-func (w tsSSTWriter) AddChangeSet(version int64, changeSet *versiondb.ChangeSet) error {
+func (w *tsSSTWriter) AddChangeSet(version int64, changeSet *versiondb.ChangeSet) error {
 	if len(changeSet.Pairs) == 0 {
 		return nil
 	}
@@ -150,7 +150,8 @@ func newSSTFileWriter() *grocksdb.SSTFileWriter {
 	envOpts := grocksdb.NewDefaultEnvOptions()
 	return grocksdb.NewSSTFileWriter(envOpts, tsrocksdb.NewVersionDBOpts())
 }
-func (w tsSSTWriter) writeBatch(sstFile string) error {
+
+func (w *tsSSTWriter) writeBatch(sstFile string) error {
 	// write out a batch
 	sstWriter := newSSTFileWriter()
 	defer sstWriter.Destroy()
@@ -165,7 +166,7 @@ func (w tsSSTWriter) writeBatch(sstFile string) error {
 			key = cloneAppend(w.prefix, item.key)
 		}
 		if err := sstWriter.PutWithTS(key, item.ts[:], item.value); err != nil {
-			fmt.Fprintf(os.Stderr, "sst writer fail: %w", err)
+			fmt.Fprintf(os.Stderr, "sst writer fail: %s", err.Error())
 			return false
 		}
 		return true
@@ -174,7 +175,7 @@ func (w tsSSTWriter) writeBatch(sstFile string) error {
 	return sstWriter.Finish()
 }
 
-func (w tsSSTWriter) Finalize() error {
+func (w *tsSSTWriter) Finalize() error {
 	if w.batch.Len() == 0 {
 		return nil
 	}

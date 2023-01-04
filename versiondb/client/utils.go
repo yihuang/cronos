@@ -4,7 +4,6 @@ import (
 	"compress/zlib"
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -57,15 +56,15 @@ func readPlainFile(input io.Reader, fn func(version int64, changeSet *versiondb.
 		if size > 0 {
 			if parseChangeset {
 				buf := make([]byte, size)
-				if _, err = io.ReadFull(input, buf[:]); err != nil {
+				if _, err = io.ReadFull(input, buf); err != nil {
 					break
 				}
 
-				if err = proto.Unmarshal(buf[:], &changeSet); err != nil {
+				if err = proto.Unmarshal(buf, &changeSet); err != nil {
 					return lastValidOffset, err
 				}
 			} else {
-				if written, err = io.CopyN(ioutil.Discard, input, int64(size)); err != nil {
+				if written, err = io.CopyN(io.Discard, input, int64(size)); err != nil {
 					if err == io.EOF && written < int64(size) {
 						err = io.ErrUnexpectedEOF
 					}
