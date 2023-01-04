@@ -41,6 +41,7 @@ func withPlainInput(plainFile string, fn func(io.Reader) error) error {
 func readPlainFile(input io.Reader, fn func(version int64, changeSet *versiondb.ChangeSet) error, parseChangeset bool) (int, error) {
 	var (
 		err             error
+		written         int64
 		versionHeader   [16]byte
 		lastValidOffset int
 	)
@@ -64,7 +65,7 @@ func readPlainFile(input io.Reader, fn func(version int64, changeSet *versiondb.
 					return lastValidOffset, err
 				}
 			} else {
-				if written, err := io.CopyN(ioutil.Discard, input, int64(size)); err != nil {
+				if written, err = io.CopyN(ioutil.Discard, input, int64(size)); err != nil {
 					if err == io.EOF && written < int64(size) {
 						err = io.ErrUnexpectedEOF
 					}
