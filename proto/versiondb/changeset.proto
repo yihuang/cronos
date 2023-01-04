@@ -1,5 +1,5 @@
 syntax = "proto3";
-package cronos;
+package versiondb;
 
 option go_package = "github.com/crypto-org-chain/cronos/versiondb";
 
