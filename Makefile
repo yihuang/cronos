@@ -8,7 +8,8 @@ NETWORK ?= mainnet
 LEDGER_ENABLED ?= true
 # RocksDB is a native dependency, so we don't assume the library is installed.
 # Instead, it must be explicitly enabled and we warn when it is not.
-ENABLE_ROCKSDB ?= false
+ENABLE_ROCKSDB ?= true
+COSMOS_BUILD_OPTIONS ?= rocksdb
 PROJECT_NAME = $(shell git remote get-url origin | xargs basename -s .git)
 
 TESTNET_FLAGS ?=
@@ -108,7 +109,7 @@ install: check-network print-ledger go.sum
 	@go install -mod=readonly $(BUILD_FLAGS) ./cmd/cronosd
 
 test:
-	@go test -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
+	@go test -v -mod=readonly $(PACKAGES) $(BUILD_FLAGS) -coverprofile=$(COVERAGE) -covermode=atomic
 
 .PHONY: clean build install test
 
