@@ -1,13 +1,16 @@
 syntax = "proto3";
+package cronos;
 
 option go_package = "github.com/crypto-org-chain/cronos/versiondb";
 
+// KVPair is an entry in the change set.
 message KVPair {
   bool delete = 1;
   bytes key = 2;
   bytes value = 3;
 }
 
+// ChangeSet represents the change set of a certain version.
 message ChangeSet {
   repeated KVPair pairs = 1;
 }
