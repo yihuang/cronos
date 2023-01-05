@@ -315,6 +315,9 @@ schema = 3
   [mod."github.com/klauspost/compress"]
     version = "v1.15.11"
     hash = "sha256-9MXm0TObg6DyqnYMIw3IChrorHc2ILf5djZYoM0e1J0="
+  [mod."github.com/klauspost/cpuid/v2"]
+    version = "v2.0.4"
+    hash = "sha256-3Gwt/jjUixXAm/RvOVwxn7c3VuDIKGgiFt3ORQzKOa8="
   [mod."github.com/lib/pq"]
     version = "v1.10.6"
     hash = "sha256-8EhFwY/9YH5L/fd6l2beOnC3VvpegRAmCCsnDVJBqBM="
@@ -349,6 +352,9 @@ schema = 3
   [mod."github.com/minio/highwayhash"]
     version = "v1.0.2"
     hash = "sha256-UeHeepKtToyA5e/w3KdmpbCn+4medesZG0cAcU6P2cY="
+  [mod."github.com/minio/sha256-simd"]
+    version = "v1.0.0"
+    hash = "sha256-oEo/BoMqSLdwSjrhHTiFjl5Om4MVLNQXDJINk6Z110Y="
   [mod."github.com/mitchellh/go-homedir"]
     version = "v1.1.0"
     hash = "sha256-oduBKXHAQG8X6aqLEpqZHs5DOKe84u6WkBwi4W6cv3k="
