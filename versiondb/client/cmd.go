@@ -15,6 +15,7 @@ func ChangeSetGroupCmd() *cobra.Command {
 	cmd.AddCommand(
 		DumpFileChangeSetCmd(),
 		PrintPlainFileCmd(),
+		VerifyPlainFileCmd(),
 		ConvertPlainToSSTTSCmd(),
 		IngestSSTCmd(),
 	)
