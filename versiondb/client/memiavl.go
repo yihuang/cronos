@@ -2,12 +2,11 @@ package client
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
-
-	"github.com/minio/sha256-simd"
 )
 
 // verify change sets by replay them to rebuild iavl tree and verify the root hashes
