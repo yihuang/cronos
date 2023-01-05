@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bufio"
 	"compress/zlib"
 	"encoding/binary"
 	"io"
@@ -25,9 +26,9 @@ func withPlainInput(plainFile string, fn func(io.Reader) error) error {
 			return err
 		}
 		defer fp.Close()
-		reader = fp
+		reader = bufio.NewReader(fp)
 		if strings.HasSuffix(plainFile, CompressedFileSuffix) {
-			zreader, err := zlib.NewReader(fp)
+			zreader, err := zlib.NewReader(reader)
 			if err != nil {
 				return err
 			}
