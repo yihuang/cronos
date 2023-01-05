@@ -144,25 +144,23 @@ func (node *Node) calcBalance() int {
 	return int(node.left.height) - int(node.right.height)
 }
 
+// mutate clear hash and update version to prepare for direct modification.
+func (node *Node) mutate(version int64) *Node {
+	node.version = version
+	node.hash = nil
+	return node
+}
+
 //      S               L
 //     / \      =>     / \
 //    L                   S
 //   / \                 / \
 //     LR               LR
 func (node *Node) rotateRight(version int64) *Node {
-	newNode := &Node{
-		version: version,
-		key:     node.key,
-		left:    node.left.right,
-		right:   node.right,
-	}
-	newSelf := &Node{
-		version: version,
-		key:     node.left.key,
-		left:    node.left.left,
-		right:   newNode,
-	}
-	newNode.updateHeightSize()
+	newSelf := node.left.mutate(version)
+	node.mutate(version).left = node.left.right
+	newSelf.right = node
+	node.updateHeightSize()
 	newSelf.updateHeightSize()
 	return newSelf
 }
@@ -173,19 +171,10 @@ func (node *Node) rotateRight(version int64) *Node {
 //     / \       / \
 //   RL             RL
 func (node *Node) rotateLeft(version int64) *Node {
-	newNode := &Node{
-		version: version,
-		key:     node.key,
-		left:    node.left,
-		right:   node.right.left,
-	}
-	newSelf := &Node{
-		version: version,
-		key:     node.right.key,
-		left:    newNode,
-		right:   node.right.right,
-	}
-	newNode.updateHeightSize()
+	newSelf := node.right.mutate(version)
+	node.mutate(version).right = node.right.left
+	newSelf.left = node
+	node.updateHeightSize()
 	newSelf.updateHeightSize()
 	return newSelf
 }
@@ -256,24 +245,12 @@ func (node *Node) setRecursive(key, value []byte, version int64) (*Node, bool) {
 		)
 		if bytes.Compare(key, node.key) == -1 {
 			newChild, updated = node.left.setRecursive(key, value, version)
-			newNode = &Node{
-				height:  node.height,
-				size:    node.size,
-				version: version,
-				key:     node.key,
-				left:    newChild,
-				right:   node.right,
-			}
+			newNode = node.mutate(version)
+			newNode.left = newChild
 		} else {
 			newChild, updated = node.right.setRecursive(key, value, version)
-			newNode = &Node{
-				height:  node.height,
-				size:    node.size,
-				version: version,
-				key:     node.key,
-				left:    node.left,
-				right:   newChild,
-			}
+			newNode = node.mutate(version)
+			newNode.right = newChild
 		}
 
 		if !updated {
@@ -305,14 +282,9 @@ func (node *Node) removeRecursive(key []byte, version int64) ([]byte, *Node) {
 			if newLeft == nil {
 				return value, node.right
 			}
-			newSelf := &Node{
-				version: version,
-				key:     node.key,
-				left:    newLeft,
-				right:   node.right,
-			}
-			newSelf.updateHeightSize()
-			return value, newSelf.reBalance(version)
+			node.mutate(version).left = newLeft
+			node.updateHeightSize()
+			return value, node.reBalance(version)
 		} else {
 			value, newRight := node.right.removeRecursive(key, version)
 			if value == nil {
@@ -321,14 +293,9 @@ func (node *Node) removeRecursive(key []byte, version int64) ([]byte, *Node) {
 			if newRight == nil {
 				return value, node.left
 			}
-			newSelf := &Node{
-				version: version,
-				key:     node.key,
-				left:    node.left,
-				right:   newRight,
-			}
-			newSelf.updateHeightSize()
-			return value, newSelf.reBalance(version)
+			node.mutate(version).right = newRight
+			node.updateHeightSize()
+			return value, node.reBalance(version)
 		}
 	}
 }
