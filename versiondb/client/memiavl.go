@@ -173,7 +173,7 @@ func (node *Node) mutate(version int64) *Node {
 //     LR               LR
 func (node *Node) rotateRight(version int64) *Node {
 	newSelf := node.left.mutate(version)
-	node.mutate(version).left = node.left.right
+	node.left = node.left.right
 	newSelf.right = node
 	node.updateHeightSize()
 	newSelf.updateHeightSize()
@@ -187,7 +187,7 @@ func (node *Node) rotateRight(version int64) *Node {
 //   RL             RL
 func (node *Node) rotateLeft(version int64) *Node {
 	newSelf := node.right.mutate(version)
-	node.mutate(version).right = node.right.left
+	node.right = node.right.left
 	newSelf.left = node
 	node.updateHeightSize()
 	newSelf.updateHeightSize()
@@ -203,7 +203,7 @@ func (node *Node) reBalance(version int64) *Node {
 			return node.rotateRight(version)
 		} else {
 			// left right
-			node.left = node.left.rotateLeft(version)
+			node.left = node.left.mutate(version).rotateLeft(version)
 			return node.rotateRight(version)
 		}
 	} else if balance < -1 {
@@ -213,7 +213,7 @@ func (node *Node) reBalance(version int64) *Node {
 			return node.rotateLeft(version)
 		} else {
 			// right left
-			node.right = node.right.rotateRight(version)
+			node.right = node.right.mutate(version).rotateRight(version)
 			return node.rotateLeft(version)
 		}
 	} else {
@@ -279,7 +279,7 @@ func (node *Node) setRecursive(key, value []byte, version int64) (*Node, bool) {
 }
 
 // removeRecursive returns:
-// - (nil, _) -> nothing changed in subtree
+// - (nil, origNode) -> nothing changed in subtree
 // - (value, nil) -> leaf node is removed
 // - (value, new node) -> subtree changed
 func (node *Node) removeRecursive(key []byte, version int64) ([]byte, *Node) {

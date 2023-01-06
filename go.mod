@@ -196,7 +196,7 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.7
 
 	// https://github.com/yihuang/iavl/tree/dump_changeset
-	github.com/cosmos/iavl => github.com/yihuang/iavl v0.16.1-0.20230103093747-1b1febf19315
+	github.com/cosmos/iavl => github.com/yihuang/iavl v0.16.1-0.20230106075006-8b4efdc0b53b
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
 	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.1-cronos
 

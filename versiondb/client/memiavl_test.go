@@ -78,14 +78,14 @@ func TestRootHashes(t *testing.T) {
 
 	// ref impl
 	d := db.NewMemDB()
-	refTree, err := iavl.NewMutableTree(d, 100, true)
+	refTree, err := iavl.NewMutableTree(d, 0, true)
 	require.NoError(t, err)
 
 	for _, changes := range ChangeSets {
 		applyChangeSet(tree, changes)
 		require.NoError(t, applyChangeSetRef(refTree, changes))
 
-		hash, v, err := tree.SaveVersion()
+		hash, v, err := tree.SaveVersion(true)
 		require.NoError(t, err)
 
 		refHash, refV, err := refTree.SaveVersion()
