@@ -15,12 +15,16 @@ func VerifyPlainFileCmd() *cobra.Command {
 		Short: "Verify change set file by rebuild iavl tree in memory and check root hash, the plain files must include continuous blocks",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var latestVersion int64
+			targetVersion, err := cmd.Flags().GetInt64(flagTargetVersion)
+			if err != nil {
+				return err
+			}
+
 			tree := NewEmptyTree(0)
 			for _, fileName := range args {
 				if err := withPlainInput(fileName, func(reader io.Reader) error {
 					var err error
-					offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) error {
+					offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) (bool, error) {
 						for _, pair := range changeSet.Pairs {
 							if pair.Delete {
 								tree.Remove(pair.Key)
@@ -30,11 +34,11 @@ func VerifyPlainFileCmd() *cobra.Command {
 						}
 
 						// no need to update hashes for intermidiate versions.
-						_, latestVersion, err = tree.SaveVersion(false)
+						_, _, err = tree.SaveVersion(false)
 						if err != nil {
-							return err
+							return false, err
 						}
-						return nil
+						return targetVersion == 0 || tree.Version() < targetVersion, nil
 					}, true)
 
 					if err == io.ErrUnexpectedEOF {
@@ -46,15 +50,20 @@ func VerifyPlainFileCmd() *cobra.Command {
 				}); err != nil {
 					return err
 				}
+
+				if targetVersion > 0 && tree.Version() >= targetVersion {
+					break
+				}
 			}
 
 			rootHash, err := tree.RootHash()
 			if err != nil {
 				return err
 			}
-			fmt.Printf("%d %X\n", latestVersion, rootHash)
+			fmt.Printf("%d %X\n", tree.Version(), rootHash)
 			return nil
 		},
 	}
+	cmd.Flags().Int64(flagTargetVersion, 0, "specify the target version, otherwise it'll exhaust the plain files")
 	return cmd
 }

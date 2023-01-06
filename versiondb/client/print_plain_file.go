@@ -24,16 +24,16 @@ func PrintPlainFileCmd() *cobra.Command {
 
 			marshaler := jsonpb.Marshaler{}
 			return withPlainInput(args[0], func(reader io.Reader) error {
-				offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) error {
+				offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) (bool, error) {
 					fmt.Printf("version: %d\n", version)
 					for _, pair := range changeSet.Pairs {
 						js, err := marshaler.MarshalToString(pair)
 						if err != nil {
-							return err
+							return false, err
 						}
 						fmt.Println(js)
 					}
-					return nil
+					return true, nil
 				}, !noParseChangeset)
 				if err == io.ErrUnexpectedEOF {
 					// incomplete end of file, we'll output a warning and process the completed versions.

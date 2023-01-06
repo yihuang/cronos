@@ -12,4 +12,5 @@ const (
 	flagMoveFiles        = "move-files"
 	flagStore            = "store"
 	flagSetLatestVersion = "set-latest-version"
+	flagTargetVersion    = "target-version"
 )

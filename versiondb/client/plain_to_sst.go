@@ -50,7 +50,12 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 			}
 
 			return withPlainInput(plainFile, func(reader io.Reader) error {
-				offset, err := readPlainFile(reader, sstBatchWriter.AddChangeSet, true)
+				offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) (bool, error) {
+					if err := sstBatchWriter.AddChangeSet(version, changeSet); err != nil {
+						return false, err
+					}
+					return true, nil
+				}, true)
 				if err := sstBatchWriter.Finalize(); err != nil {
 					return err
 				}

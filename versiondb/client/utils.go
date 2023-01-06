@@ -38,7 +38,7 @@ func withPlainInput(plainFile string, fn func(io.Reader) error) error {
 	return fn(reader)
 }
 
-func readPlainFile(input io.Reader, fn func(version int64, changeSet *versiondb.ChangeSet) error, parseChangeset bool) (int, error) {
+func readPlainFile(input io.Reader, fn func(version int64, changeSet *versiondb.ChangeSet) (bool, error), parseChangeset bool) (int, error) {
 	var (
 		err             error
 		written         int64
@@ -46,8 +46,9 @@ func readPlainFile(input io.Reader, fn func(version int64, changeSet *versiondb.
 		lastValidOffset int
 	)
 
+	cont := true
 	lastValidOffset = 0
-	for {
+	for cont {
 		if _, err = io.ReadFull(input, versionHeader[:]); err != nil {
 			break
 		}
@@ -74,7 +75,8 @@ func readPlainFile(input io.Reader, fn func(version int64, changeSet *versiondb.
 			}
 		}
 
-		if err = fn(int64(version), &changeSet); err != nil {
+		cont, err = fn(int64(version), &changeSet)
+		if err != nil {
 			return lastValidOffset, err
 		}
 

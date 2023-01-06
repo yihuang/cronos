@@ -43,6 +43,10 @@ func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
 	return hash, t.version, nil
 }
 
+func (t *Tree) Version() int64 {
+	return t.version
+}
+
 // RootHash updates the hashes and return the current root hash
 func (t *Tree) RootHash() ([]byte, error) {
 	return t.root._hash()
