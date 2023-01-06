@@ -40,6 +40,19 @@ func NewStore(dir string) (Store, error) {
 	}, nil
 }
 
+func NewStoreWithDB(db *grocksdb.DB, cfHandle *grocksdb.ColumnFamilyHandle) Store {
+	return Store{
+		db:       db,
+		cfHandle: cfHandle,
+	}
+}
+
+func (s Store) SetLatestVersion(version int64) error {
+	var ts [TimestampSize]byte
+	binary.LittleEndian.PutUint64(ts[:], uint64(version))
+	return s.db.Put(grocksdb.NewDefaultWriteOptions(), []byte(latestVersionKey), ts[:])
+}
+
 // PutAtVersion implements VersionStore interface
 func (s Store) PutAtVersion(version int64, changeSet []types.StoreKVPair) error {
 	var ts [TimestampSize]byte

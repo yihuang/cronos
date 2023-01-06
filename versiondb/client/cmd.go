@@ -37,11 +37,27 @@ func IngestSSTCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ingestOpts := grocksdb.NewDefaultIngestExternalFileOptions()
-			ingestOpts.SetMoveFiles(moveFiles)
-			return db.IngestExternalFileCF(cfHandle, args[1:], ingestOpts)
+			if len(args) > 1 {
+				ingestOpts := grocksdb.NewDefaultIngestExternalFileOptions()
+				ingestOpts.SetMoveFiles(moveFiles)
+				if err := db.IngestExternalFileCF(cfHandle, args[1:], ingestOpts); err != nil {
+					return err
+				}
+			}
+
+			latestVersion, err := cmd.Flags().GetInt64(flagSetLatestVersion)
+			if err != nil {
+				return err
+			}
+			if latestVersion > 0 {
+				// update latest version
+				store := tsrocksdb.NewStoreWithDB(db, cfHandle)
+				store.SetLatestVersion(latestVersion)
+			}
+			return nil
 		},
 	}
 	cmd.Flags().Bool(flagMoveFiles, false, "move sst files instead of copy them")
+	cmd.Flags().Int64(flagSetLatestVersion, 0, "set the latest version to specified one")
 	return cmd
 }
