@@ -247,7 +247,8 @@ func (node *Node) setRecursive(key, value []byte, version int64) (*Node, bool) {
 				right:   newLeafNode(key, value, version),
 			}, false
 		default:
-			return newLeafNode(key, value, version), true
+			node.mutate(version).value = value
+			return node, true
 		}
 	} else {
 		var (
