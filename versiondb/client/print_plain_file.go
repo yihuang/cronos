@@ -22,9 +22,24 @@ func PrintPlainFileCmd() *cobra.Command {
 				return err
 			}
 
+			startVersion, err := cmd.Flags().GetInt64(flagStartVersion)
+			if err != nil {
+				return err
+			}
+			endVersion, err := cmd.Flags().GetInt64(flagEndVersion)
+			if err != nil {
+				return err
+			}
+
 			marshaler := jsonpb.Marshaler{}
 			return withPlainInput(args[0], func(reader io.Reader) error {
 				offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) (bool, error) {
+					if version < startVersion {
+						return true, nil
+					}
+					if endVersion > 0 && version >= endVersion {
+						return false, nil
+					}
 					fmt.Printf("version: %d\n", version)
 					for _, pair := range changeSet.Pairs {
 						js, err := marshaler.MarshalToString(pair)
@@ -46,5 +61,7 @@ func PrintPlainFileCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Bool(flagNoParseChangeset, false, "if parse and output the change set content, otherwise only version numbers are outputted")
+	cmd.Flags().Int64(flagStartVersion, 0, "Start of the version range to print")
+	cmd.Flags().Int64(flagEndVersion, 0, "End(exclusive) of the version range to print, 0 means no end")
 	return cmd
 }
