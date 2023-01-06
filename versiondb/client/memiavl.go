@@ -28,13 +28,24 @@ func (t *Tree) Remove(key []byte) {
 }
 
 // SaveVersion returns current root hash and increase version number
-func (t *Tree) SaveVersion() ([]byte, int64, error) {
-	hash, err := t.root._hash()
-	if err != nil {
-		return nil, 0, err
+func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
+	var (
+		err  error
+		hash []byte
+	)
+	if updateHash {
+		hash, err = t.root._hash()
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 	t.version++
 	return hash, t.version, nil
+}
+
+// RootHash updates the hashes and return the current root hash
+func (t *Tree) RootHash() ([]byte, error) {
+	return t.root._hash()
 }
 
 type Node struct {

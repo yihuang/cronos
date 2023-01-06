@@ -17,7 +17,7 @@ func VerifyPlainFileCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return withPlainInput(args[0], func(reader io.Reader) error {
 				var (
-					rootHash      []byte
+					err           error
 					latestVersion int64
 				)
 				tree := NewEmptyTree(0)
@@ -29,15 +29,14 @@ func VerifyPlainFileCmd() *cobra.Command {
 							tree.Set(pair.Key, pair.Value)
 						}
 					}
-					var err error
-					rootHash, latestVersion, err = tree.SaveVersion()
+
+					// no need to update hashes for intermidiate versions.
+					_, latestVersion, err = tree.SaveVersion(false)
 					if err != nil {
 						return err
 					}
 					return nil
 				}, true)
-
-				fmt.Printf("%d %X\n", latestVersion, rootHash)
 
 				if err == io.ErrUnexpectedEOF {
 					// incomplete end of file, we'll output a warning and process the completed versions.
@@ -45,6 +44,13 @@ func VerifyPlainFileCmd() *cobra.Command {
 				} else if err != nil {
 					return err
 				}
+
+				rootHash, err := tree.RootHash()
+				if err != nil {
+					return err
+				}
+				fmt.Printf("%d %X\n", latestVersion, rootHash)
+
 				return nil
 			})
 		},
