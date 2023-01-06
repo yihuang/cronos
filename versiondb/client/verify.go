@@ -23,7 +23,6 @@ func VerifyPlainFileCmd() *cobra.Command {
 			tree := NewEmptyTree(0)
 			for _, fileName := range args {
 				if err := withPlainInput(fileName, func(reader io.Reader) error {
-					var err error
 					offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) (bool, error) {
 						for _, pair := range changeSet.Pairs {
 							if pair.Delete {
@@ -34,11 +33,14 @@ func VerifyPlainFileCmd() *cobra.Command {
 						}
 
 						// no need to update hashes for intermidiate versions.
-						_, _, err = tree.SaveVersion(false)
+						_, v, err := tree.SaveVersion(false)
 						if err != nil {
 							return false, err
 						}
-						return targetVersion == 0 || tree.Version() < targetVersion, nil
+						if v != version {
+							return false, fmt.Errorf("version don't match: %d != %d", v, version)
+						}
+						return targetVersion == 0 || v < targetVersion, nil
 					}, true)
 
 					if err == io.ErrUnexpectedEOF {
