@@ -95,3 +95,21 @@ func TestRootHashes(t *testing.T) {
 		require.Equal(t, refHash, hash)
 	}
 }
+
+func TestNewKey(t *testing.T) {
+	tree := NewEmptyTree(0)
+	for i := 0; i < 4; i++ {
+		tree.Set([]byte(fmt.Sprintf("key-%d", i)), []byte{1})
+	}
+	_, _, err := tree.SaveVersion(true)
+	require.NoError(t, err)
+
+	// the smallest key in the right half of the tree
+	require.Equal(t, tree.root.key, []byte("key-2"))
+
+	// remove this key
+	tree.Remove([]byte("key-2"))
+
+	// check root node's key is changed
+	require.Equal(t, []byte("key-3"), tree.root.key)
+}

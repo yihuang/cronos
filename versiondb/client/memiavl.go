@@ -24,7 +24,7 @@ func (t *Tree) Set(key, value []byte) {
 }
 
 func (t *Tree) Remove(key []byte) {
-	_, t.root = t.root.removeRecursive(key, t.version+1)
+	_, t.root, _ = t.root.removeRecursive(key, t.version+1)
 }
 
 // SaveVersion returns current root hash and increase version number
@@ -279,39 +279,42 @@ func (node *Node) setRecursive(key, value []byte, version int64) (*Node, bool) {
 }
 
 // removeRecursive returns:
-// - (nil, origNode) -> nothing changed in subtree
-// - (value, nil) -> leaf node is removed
-// - (value, new node) -> subtree changed
-func (node *Node) removeRecursive(key []byte, version int64) ([]byte, *Node) {
+// - (nil, origNode, nil) -> nothing changed in subtree
+// - (value, nil, newKey) -> leaf node is removed
+// - (value, new node, newKey) -> subtree changed
+func (node *Node) removeRecursive(key []byte, version int64) ([]byte, *Node, []byte) {
 	if node.isLeaf() {
 		if bytes.Equal(node.key, key) {
-			return node.value, nil
+			return node.value, nil, nil
 		} else {
-			return nil, node
+			return nil, node, nil
 		}
 	} else {
 		if bytes.Compare(key, node.key) == -1 {
-			value, newLeft := node.left.removeRecursive(key, version)
+			value, newLeft, newKey := node.left.removeRecursive(key, version)
 			if value == nil {
-				return nil, node
+				return nil, node, nil
 			}
 			if newLeft == nil {
-				return value, node.right
+				return value, node.right, node.key
 			}
 			node.mutate(version).left = newLeft
 			node.updateHeightSize()
-			return value, node.reBalance(version)
+			return value, node.reBalance(version), newKey
 		} else {
-			value, newRight := node.right.removeRecursive(key, version)
+			value, newRight, newKey := node.right.removeRecursive(key, version)
 			if value == nil {
-				return nil, node
+				return nil, node, nil
 			}
 			if newRight == nil {
-				return value, node.left
+				return value, node.left, nil
 			}
 			node.mutate(version).right = newRight
+			if newKey != nil {
+				node.key = newKey
+			}
 			node.updateHeightSize()
-			return value, node.reBalance(version)
+			return value, node.reBalance(version), nil
 		}
 	}
 }
