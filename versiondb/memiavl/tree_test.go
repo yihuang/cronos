@@ -105,11 +105,11 @@ func TestNewKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// the smallest key in the right half of the tree
-	require.Equal(t, tree.root.key, []byte("key-2"))
+	require.Equal(t, tree.root.Key(), []byte("key-2"))
 
 	// remove this key
 	tree.Remove([]byte("key-2"))
 
 	// check root node's key is changed
-	require.Equal(t, []byte("key-3"), tree.root.key)
+	require.Equal(t, []byte("key-3"), tree.root.Key())
 }

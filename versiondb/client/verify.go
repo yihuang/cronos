@@ -60,10 +60,7 @@ func VerifyPlainFileCmd() *cobra.Command {
 				}
 			}
 
-			rootHash, err := tree.RootHash()
-			if err != nil {
-				return err
-			}
+			rootHash := tree.RootHash()
 			fmt.Printf("%d %X\n", tree.Version(), rootHash)
 			return nil
 		},
