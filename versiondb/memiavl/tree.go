@@ -1,5 +1,7 @@
 package memiavl
 
+import "path/filepath"
+
 // verify change sets by replay them to rebuild iavl tree and verify the root hashes
 type Tree struct {
 	version int64
@@ -35,4 +37,13 @@ func (t *Tree) Version() int64 {
 // RootHash updates the hashes and return the current root hash
 func (t *Tree) RootHash() []byte {
 	return t.root.Hash()
+}
+
+func (t *Tree) WriteSnapshot(snapshotDir string) error {
+	return WriteSnapshot(
+		t.root,
+		filepath.Join(snapshotDir, "nodes"),
+		filepath.Join(snapshotDir, "keys"),
+		filepath.Join(snapshotDir, "values"),
+	)
 }

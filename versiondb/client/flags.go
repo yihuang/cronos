@@ -13,4 +13,5 @@ const (
 	flagStore            = "store"
 	flagSetLatestVersion = "set-latest-version"
 	flagTargetVersion    = "target-version"
+	flagSaveSnapshot     = "save-snapshot"
 )

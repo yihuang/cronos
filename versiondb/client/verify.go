@@ -21,6 +21,16 @@ func VerifyPlainFileCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			saveSnapshot, err := cmd.Flags().GetString(flagSaveSnapshot)
+			if err != nil {
+				return err
+			}
+			if len(saveSnapshot) > 0 {
+				// detect the write permission early on.
+				if err := os.MkdirAll(saveSnapshot, os.ModePerm); err != nil {
+					return err
+				}
+			}
 
 			tree := memiavl.NewEmptyTree(0)
 			for _, fileName := range args {
@@ -62,9 +72,15 @@ func VerifyPlainFileCmd() *cobra.Command {
 
 			rootHash := tree.RootHash()
 			fmt.Printf("%d %X\n", tree.Version(), rootHash)
+
+			if len(saveSnapshot) > 0 {
+				fmt.Println("saving snapshot to", saveSnapshot)
+				tree.WriteSnapshot(saveSnapshot)
+			}
 			return nil
 		},
 	}
 	cmd.Flags().Int64(flagTargetVersion, 0, "specify the target version, otherwise it'll exhaust the plain files")
+	cmd.Flags().String(flagSaveSnapshot, "", "save the snapshot of the target iavl tree")
 	return cmd
 }

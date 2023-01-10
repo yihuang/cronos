@@ -125,3 +125,35 @@ func removeRecursive(node Node, key []byte, version int64) ([]byte, Node, []byte
 		}
 	}
 }
+
+type delayedNode struct {
+	node    Node
+	delayed bool
+}
+
+func traversePostOrder(root Node, cb func(Node) (bool, error)) error {
+	stack := make([]delayedNode, 0, root.Height()*2)
+	stack = append(stack, delayedNode{node: root, delayed: false})
+	for len(stack) > 0 {
+		current := stack[len(stack)]
+		stack = stack[:len(stack)-1]
+
+		if current.delayed || isLeaf(current.node) {
+			cont, err := cb(current.node)
+			if err != nil {
+				return err
+			}
+			if !cont {
+				break
+			}
+			continue
+		}
+
+		stack = append(stack,
+			delayedNode{node: root, delayed: true},
+			delayedNode{node: root.Left(), delayed: false},
+			delayedNode{node: root.Right(), delayed: false},
+		)
+	}
+	return nil
+}
