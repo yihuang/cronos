@@ -95,7 +95,6 @@ func VerifyPlainFileCmd() *cobra.Command {
 			fmt.Printf("%d %X\n", tree.Version(), rootHash)
 
 			if len(saveSnapshot) > 0 {
-				fmt.Println("saving snapshot to", saveSnapshot)
 				tree.WriteSnapshot(saveSnapshot)
 			}
 			return nil
