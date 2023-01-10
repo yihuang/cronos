@@ -5,8 +5,10 @@ import (
 	"io"
 	"os"
 
-	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/spf13/cobra"
+
+	"github.com/crypto-org-chain/cronos/versiondb"
+	"github.com/crypto-org-chain/cronos/versiondb/memiavl"
 )
 
 func VerifyPlainFileCmd() *cobra.Command {
@@ -20,7 +22,7 @@ func VerifyPlainFileCmd() *cobra.Command {
 				return err
 			}
 
-			tree := NewEmptyTree(0)
+			tree := memiavl.NewEmptyTree(0)
 			for _, fileName := range args {
 				if err := withPlainInput(fileName, func(reader io.Reader) error {
 					offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) (bool, error) {
