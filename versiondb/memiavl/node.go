@@ -1,6 +1,12 @@
 package memiavl
 
-import "bytes"
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
+	"fmt"
+	"io"
+)
 
 // Node interface encapsulate the interface of both PersistedNode and MemNode.
 type Node interface {
@@ -126,34 +132,66 @@ func removeRecursive(node Node, key []byte, version int64) ([]byte, Node, []byte
 	}
 }
 
-type delayedNode struct {
-	node    Node
-	delayed bool
-}
+// Writes the node's hash to the given `io.Writer`. This function recursively calls
+// children to update hashes.
+func writeHashBytes(node Node, w io.Writer) error {
+	var (
+		n   int
+		buf [binary.MaxVarintLen64]byte
+	)
 
-func traversePostOrder(root Node, cb func(Node) (bool, error)) error {
-	stack := make([]delayedNode, 0, root.Height()*2)
-	stack = append(stack, delayedNode{node: root, delayed: false})
-	for len(stack) > 0 {
-		current := stack[len(stack)]
-		stack = stack[:len(stack)-1]
+	n = binary.PutVarint(buf[:], int64(node.Height()))
+	if _, err := w.Write(buf[0:n]); err != nil {
+		return fmt.Errorf("writing height, %w", err)
+	}
+	n = binary.PutVarint(buf[:], node.Size())
+	if _, err := w.Write(buf[0:n]); err != nil {
+		return fmt.Errorf("writing size, %w", err)
+	}
+	n = binary.PutVarint(buf[:], node.Version())
+	if _, err := w.Write(buf[0:n]); err != nil {
+		return fmt.Errorf("writing version, %w", err)
+	}
 
-		if current.delayed || isLeaf(current.node) {
-			cont, err := cb(current.node)
-			if err != nil {
-				return err
-			}
-			if !cont {
-				break
-			}
-			continue
+	// Key is not written for inner nodes, unlike writeBytes.
+
+	if isLeaf(node) {
+		if err := EncodeBytes(w, node.Key()); err != nil {
+			return fmt.Errorf("writing key, %w", err)
 		}
 
-		stack = append(stack,
-			delayedNode{node: root, delayed: true},
-			delayedNode{node: root.Left(), delayed: false},
-			delayedNode{node: root.Right(), delayed: false},
-		)
+		// Indirection needed to provide proofs without values.
+		// (e.g. ProofLeafNode.ValueHash)
+		valueHash := sha256.Sum256(node.Value())
+
+		if err := EncodeBytes(w, valueHash[:]); err != nil {
+			return fmt.Errorf("writing value, %w", err)
+		}
+	} else {
+		if err := EncodeBytes(w, node.Left().Hash()); err != nil {
+			return fmt.Errorf("writing left hash, %w", err)
+		}
+		if err := EncodeBytes(w, node.Right().Hash()); err != nil {
+			return fmt.Errorf("writing right hash, %w", err)
+		}
 	}
+
 	return nil
+}
+
+// HashNode computes the hash of the node.
+func HashNode(node Node) []byte {
+	if node == nil {
+		return nil
+	}
+	h := sha256.New()
+	if err := writeHashBytes(node, h); err != nil {
+		panic(err)
+	}
+	return h.Sum(nil)
+}
+
+// VerifyHash compare node's cached hash with computed one
+func VerifyHash(node Node) bool {
+	return bytes.Equal(HashNode(node), node.Hash())
 }

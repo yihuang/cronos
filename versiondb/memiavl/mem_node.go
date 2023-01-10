@@ -1,10 +1,7 @@
 package memiavl
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
-	"errors"
-	"fmt"
 	"io"
 )
 
@@ -67,56 +64,6 @@ func (node *MemNode) Mutate(version int64) *MemNode {
 	return node
 }
 
-// Writes the node's hash to the given `io.Writer`. This function recursively calls
-// children to update hashes.
-func (node *MemNode) writeHashBytes(w io.Writer) error {
-	var (
-		n   int
-		buf [binary.MaxVarintLen64]byte
-	)
-
-	n = binary.PutVarint(buf[:], int64(node.height))
-	if _, err := w.Write(buf[0:n]); err != nil {
-		return fmt.Errorf("writing height, %w", err)
-	}
-	n = binary.PutVarint(buf[:], node.size)
-	if _, err := w.Write(buf[0:n]); err != nil {
-		return fmt.Errorf("writing size, %w", err)
-	}
-	n = binary.PutVarint(buf[:], node.version)
-	if _, err := w.Write(buf[0:n]); err != nil {
-		return fmt.Errorf("writing version, %w", err)
-	}
-
-	// Key is not written for inner nodes, unlike writeBytes.
-
-	if node.isLeaf() {
-		if err := EncodeBytes(w, node.key, buf[:]); err != nil {
-			return fmt.Errorf("writing key, %w", err)
-		}
-
-		// Indirection needed to provide proofs without values.
-		// (e.g. ProofLeafNode.ValueHash)
-		valueHash := sha256.Sum256(node.value)
-
-		if err := EncodeBytes(w, valueHash[:], buf[:]); err != nil {
-			return fmt.Errorf("writing value, %w", err)
-		}
-	} else {
-		if node.left == nil || node.right == nil {
-			return errors.New("empty child")
-		}
-		if err := EncodeBytes(w, node.left.Hash(), buf[:]); err != nil {
-			return fmt.Errorf("writing left hash, %w", err)
-		}
-		if err := EncodeBytes(w, node.right.Hash(), buf[:]); err != nil {
-			return fmt.Errorf("writing right hash, %w", err)
-		}
-	}
-
-	return nil
-}
-
 // Computes the hash of the node without computing its descendants. Must be
 // called on nodes which have descendant node hashes already computed.
 func (node *MemNode) Hash() []byte {
@@ -126,12 +73,7 @@ func (node *MemNode) Hash() []byte {
 	if node.hash != nil {
 		return node.hash
 	}
-
-	h := sha256.New()
-	if err := node.writeHashBytes(h); err != nil {
-		panic(err)
-	}
-	node.hash = h.Sum(nil)
+	node.hash = HashNode(node)
 	return node.hash
 }
 
@@ -210,8 +152,9 @@ func (node *MemNode) reBalance(version int64) *MemNode {
 }
 
 // EncodeBytes writes a varint length-prefixed byte slice to the writer.
-func EncodeBytes(w io.Writer, bz []byte, buf []byte) error {
-	n := binary.PutUvarint(buf, uint64(len(bz)))
+func EncodeBytes(w io.Writer, bz []byte) error {
+	var buf [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(buf[:], uint64(len(bz)))
 	if _, err := w.Write(buf[0:n]); err != nil {
 		return err
 	}

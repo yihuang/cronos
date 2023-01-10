@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func WriteSnapshot(root Node, nodesFile, keysFile, valuesFile string) error {
+func WriteSnapshot(root Node, version int64, nodesFile, keysFile, valuesFile, metadataFile string) error {
 	fpNodes, err := os.OpenFile(nodesFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
@@ -32,9 +32,36 @@ func WriteSnapshot(root Node, nodesFile, keysFile, valuesFile string) error {
 	valuesWriter := bufio.NewWriter(fpValues)
 	defer valuesWriter.Flush()
 
+	fpMetadata, err := os.OpenFile(metadataFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	defer fpMetadata.Close()
+
 	w := newSnapshotWriter(nodesWriter, keysWriter, valuesWriter)
-	_, _, err = w.writeRecursive(root)
-	return err
+	rootIndex, _, err := w.writeRecursive(root)
+	if err != nil {
+		return err
+	}
+
+	// write metadata
+	var metadataBuf [16]byte
+	binary.LittleEndian.PutUint64(metadataBuf[0:], uint64(version))
+	binary.LittleEndian.PutUint64(metadataBuf[8:], rootIndex)
+	if _, err := fpMetadata.Write(metadataBuf[:]); err != nil {
+		return err
+	}
+
+	if err := fpKeys.Sync(); err != nil {
+		return err
+	}
+	if err := fpValues.Sync(); err != nil {
+		return err
+	}
+	if err := fpNodes.Sync(); err != nil {
+		return err
+	}
+	return fpMetadata.Sync()
 }
 
 type snapshotWriter struct {
@@ -114,16 +141,16 @@ func (w *snapshotWriter) writeRecursive(node Node) (uint64, uint64, error) {
 			return 0, 0, err
 		}
 		binary.LittleEndian.PutUint64(buf[OffsetKey:], keyOffset)
-		binary.LittleEndian.PutUint64(buf[OffsetRight:], nodeIndex)
+		binary.LittleEndian.PutUint32(buf[OffsetRight:], uint32(nodeIndex))
 
 		nodeIndex, minimalKeyOffset, err = w.writeRecursive(node.Left())
 		if err != nil {
 			return 0, 0, err
 		}
-		binary.LittleEndian.PutUint64(buf[OffsetLeft:], nodeIndex)
+		binary.LittleEndian.PutUint32(buf[OffsetLeft:], uint32(nodeIndex))
 	}
 
-	copy(buf[OffsetHash:], node.Hash())
+	copy(buf[OffsetHash:OffsetHash+SizeHash], node.Hash())
 	if _, err := w.nodesWriter.Write(buf[:]); err != nil {
 		return 0, 0, err
 	}

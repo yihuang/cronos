@@ -25,6 +25,12 @@ func VerifyPlainFileCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			loadSnapshot, err := cmd.Flags().GetString(flagLoadSnapshot)
+			if err != nil {
+				return err
+			}
+
 			if len(saveSnapshot) > 0 {
 				// detect the write permission early on.
 				if err := os.MkdirAll(saveSnapshot, os.ModePerm); err != nil {
@@ -32,10 +38,25 @@ func VerifyPlainFileCmd() *cobra.Command {
 				}
 			}
 
-			tree := memiavl.NewEmptyTree(0)
+			var tree *memiavl.Tree
+			if len(loadSnapshot) > 0 {
+				tree, err = memiavl.LoadSnapshot(loadSnapshot)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("snapshot loaded: %d %X\n", tree.Version(), tree.RootHash())
+			} else {
+				tree = memiavl.NewEmptyTree(0)
+			}
+
 			for _, fileName := range args {
 				if err := withPlainInput(fileName, func(reader io.Reader) error {
 					offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) (bool, error) {
+						if version <= tree.Version() {
+							// skip old change sets
+							return true, nil
+						}
+
 						for _, pair := range changeSet.Pairs {
 							if pair.Delete {
 								tree.Remove(pair.Key)
@@ -82,5 +103,6 @@ func VerifyPlainFileCmd() *cobra.Command {
 	}
 	cmd.Flags().Int64(flagTargetVersion, 0, "specify the target version, otherwise it'll exhaust the plain files")
 	cmd.Flags().String(flagSaveSnapshot, "", "save the snapshot of the target iavl tree")
+	cmd.Flags().String(flagLoadSnapshot, "", "load the snapshot before doing verification")
 	return cmd
 }

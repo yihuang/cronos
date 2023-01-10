@@ -3,9 +3,6 @@ package memiavl
 import (
 	"encoding/binary"
 	"os"
-
-	"github.com/edsrzf/mmap-go"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -13,7 +10,7 @@ const (
 	OffsetVersion = OffsetHeight + 4
 	OffsetSize    = OffsetVersion + 4
 	OffsetKey     = OffsetSize + 8
-	OffsetRight   = OffsetKey + 4
+	OffsetRight   = OffsetKey + 8
 	OffsetLeft    = OffsetRight + 4
 	OffsetValue   = OffsetKey + 8
 	OffsetHash    = OffsetValue + 8
@@ -30,71 +27,6 @@ type PersistedBlobs struct {
 	nodes  []byte
 	keys   []byte
 	values []byte
-}
-
-// OpenIAVLSnapshot mmap the blob files and the root node.
-func OpenIAVLSnapshot(nodesFile, keysFile, valuesFile string) (*PersistedBlobs, PersistedNode, error) {
-	fpNodes, err := os.Open(nodesFile)
-	if err != nil {
-		return nil, PersistedNode{}, err
-	}
-
-	nodes, err := mmap.Map(fpNodes, mmap.RDONLY, 0)
-	if err != nil {
-		fpNodes.Close()
-		return nil, PersistedNode{}, err
-	}
-
-	if len(nodes) == 0 {
-		// empty tree
-		fpNodes.Close()
-		return &PersistedBlobs{}, PersistedNode{}, nil
-	}
-
-	if len(nodes)%SizeNode != 0 {
-		fpNodes.Close()
-		return nil, PersistedNode{}, errors.Errorf("snapshot file size %d is not multiples of node size %d", len(nodes), SizeNode)
-	}
-
-	fpKeys, err := os.Open(keysFile)
-	if err != nil {
-		fpNodes.Close()
-		return nil, PersistedNode{}, err
-	}
-	keys, err := mmap.Map(fpKeys, mmap.RDONLY, 0)
-	if err != nil {
-		fpNodes.Close()
-		fpKeys.Close()
-		return nil, PersistedNode{}, err
-	}
-	fpValues, err := os.Open(valuesFile)
-	if err != nil {
-		fpNodes.Close()
-		fpKeys.Close()
-		return nil, PersistedNode{}, err
-	}
-	values, err := mmap.Map(fpValues, mmap.RDONLY, 0)
-	if err != nil {
-		fpNodes.Close()
-		fpKeys.Close()
-		fpValues.Close()
-		return nil, PersistedNode{}, err
-	}
-
-	blobs := &PersistedBlobs{
-		nodesFile:  fpNodes,
-		keysFile:   fpKeys,
-		valuesFile: fpValues,
-
-		nodes:  nodes,
-		keys:   keys,
-		values: values,
-	}
-
-	// the last node is the root node
-	root := blobs.Node(uint64((len(nodes) - SizeNode) / SizeNode))
-
-	return blobs, root, nil
 }
 
 func (blobs *PersistedBlobs) Node(offset uint64) PersistedNode {
@@ -140,27 +72,23 @@ func (node PersistedNode) Height() int8 {
 }
 
 func (node PersistedNode) Version() int64 {
-	offset := node.offset + OffsetVersion
-	return int64(binary.LittleEndian.Uint32(node.blobs.nodes[offset : offset+4]))
+	return int64(binary.LittleEndian.Uint32(node.blobs.nodes[node.offset+OffsetVersion:]))
 }
 
 func (node PersistedNode) Size() int64 {
-	offset := node.offset + OffsetSize
-	return int64(binary.LittleEndian.Uint64(node.blobs.nodes[offset : offset+8]))
+	return int64(binary.LittleEndian.Uint64(node.blobs.nodes[node.offset+OffsetSize:]))
 }
 
 func (node PersistedNode) Key() []byte {
-	offset := node.offset + OffsetKey
-	keyOffset := binary.LittleEndian.Uint64(node.blobs.nodes[offset : offset+8])
-	keyLen := uint64(binary.LittleEndian.Uint16(node.blobs.keys[keyOffset : keyOffset+2]))
+	keyOffset := binary.LittleEndian.Uint64(node.blobs.nodes[node.offset+OffsetKey:])
+	keyLen := uint64(binary.LittleEndian.Uint16(node.blobs.keys[keyOffset:]))
 	keyOffset += 2
 	return node.blobs.keys[keyOffset : keyOffset+keyLen]
 }
 
 // Value result is not defined for non-leaf node.
 func (node PersistedNode) Value() []byte {
-	offset := node.offset + OffsetValue
-	valueOffset := binary.LittleEndian.Uint64(node.blobs.nodes[offset : offset+8])
+	valueOffset := binary.LittleEndian.Uint64(node.blobs.nodes[node.offset+OffsetValue:])
 	valueLen := uint64(binary.LittleEndian.Uint16(node.blobs.values[valueOffset : valueOffset+2]))
 	valueOffset += 2
 	return node.blobs.values[valueOffset : valueOffset+valueLen]
@@ -168,15 +96,13 @@ func (node PersistedNode) Value() []byte {
 
 // Left result is not defined for leaf nodes.
 func (node PersistedNode) Left() Node {
-	offset := node.offset + OffsetLeft
-	nodeIndex := binary.LittleEndian.Uint32(node.blobs.nodes[offset : offset+4])
+	nodeIndex := binary.LittleEndian.Uint32(node.blobs.nodes[node.offset+OffsetLeft:])
 	return PersistedNode{blobs: node.blobs, offset: uint64(nodeIndex) * SizeNode}
 }
 
 // Right result is not defined for leaf nodes.
 func (node PersistedNode) Right() Node {
-	offset := node.offset + OffsetRight
-	nodeIndex := binary.LittleEndian.Uint32(node.blobs.nodes[offset : offset+4])
+	nodeIndex := binary.LittleEndian.Uint32(node.blobs.nodes[node.offset+OffsetRight:])
 	return PersistedNode{blobs: node.blobs, offset: uint64(nodeIndex) * SizeNode}
 }
 
@@ -191,7 +117,6 @@ func (node PersistedNode) Mutate(version int64) *MemNode {
 		size:    node.Size(),
 		version: version,
 		key:     node.Key(),
-		hash:    node.Hash(),
 	}
 	if mnode.isLeaf() {
 		mnode.value = node.Value()
