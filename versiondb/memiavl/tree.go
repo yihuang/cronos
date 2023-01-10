@@ -1,12 +1,7 @@
 package memiavl
 
 import (
-	"encoding/binary"
-	"os"
 	"path/filepath"
-
-	"github.com/edsrzf/mmap-go"
-	"github.com/pkg/errors"
 )
 
 // verify change sets by replay them to rebuild iavl tree and verify the root hashes
@@ -19,84 +14,21 @@ func NewEmptyTree(version int64) *Tree {
 	return &Tree{version: version}
 }
 
-// LoadSnapshot mmap the blob files and create the root node.
-func LoadSnapshot(snapshotDir string) (*Tree, error) {
-	nodesFile := filepath.Join(snapshotDir, "nodes")
-	keysFile := filepath.Join(snapshotDir, "keys")
-	valuesFile := filepath.Join(snapshotDir, "values")
-	metadataFile := filepath.Join(snapshotDir, "metadata")
-
-	bz, err := os.ReadFile(metadataFile)
+// LoadTreeFromSnapshot mmap the blob files and create the root node.
+func LoadTreeFromSnapshot(snapshotDir string) (*Tree, *PersistedBlobs, error) {
+	blobs, version, rootIndex, err := loadSnapshot(snapshotDir)
 	if err != nil {
-		return nil, err
-	}
-	version := binary.LittleEndian.Uint64(bz[:])
-	rootIndex := binary.LittleEndian.Uint64(bz[8:])
-
-	fpNodes, err := os.Open(nodesFile)
-	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	nodes, err := mmap.Map(fpNodes, mmap.RDONLY, 0)
-	if err != nil {
-		fpNodes.Close()
-		return nil, err
+	if blobs == nil {
+		return NewEmptyTree(int64(version)), nil, err
 	}
-
-	if len(nodes) == 0 {
-		// empty tree
-		fpNodes.Close()
-		return nil, nil
-	}
-
-	if uint64(len(nodes)) != (rootIndex+1)*SizeNode {
-		fpNodes.Close()
-		return nil, errors.Errorf("nodes file size %d don't match root node index %d", len(nodes), rootIndex)
-	}
-
-	fpKeys, err := os.Open(keysFile)
-	if err != nil {
-		fpNodes.Close()
-		return nil, err
-	}
-	keys, err := mmap.Map(fpKeys, mmap.RDONLY, 0)
-	if err != nil {
-		fpNodes.Close()
-		fpKeys.Close()
-		return nil, err
-	}
-	fpValues, err := os.Open(valuesFile)
-	if err != nil {
-		fpNodes.Close()
-		fpKeys.Close()
-		return nil, err
-	}
-	values, err := mmap.Map(fpValues, mmap.RDONLY, 0)
-	if err != nil {
-		fpNodes.Close()
-		fpKeys.Close()
-		fpValues.Close()
-		return nil, err
-	}
-
-	blobs := &PersistedBlobs{
-		nodesFile:  fpNodes,
-		keysFile:   fpKeys,
-		valuesFile: fpValues,
-
-		nodes:  nodes,
-		keys:   keys,
-		values: values,
-	}
-
-	// the last node is the root node
-	root := blobs.Node(rootIndex * SizeNode)
 
 	return &Tree{
 		version: int64(version),
-		root:    root,
-	}, nil
+		root:    blobs.Node(rootIndex),
+	}, blobs, nil
 }
 
 func (t *Tree) Set(key, value []byte) {

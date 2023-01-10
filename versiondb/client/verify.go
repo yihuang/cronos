@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"cosmossdk.io/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/crypto-org-chain/cronos/versiondb"
@@ -38,11 +39,17 @@ func VerifyPlainFileCmd() *cobra.Command {
 				}
 			}
 
-			var tree *memiavl.Tree
+			var (
+				tree  *memiavl.Tree
+				blobs *memiavl.PersistedBlobs
+			)
 			if len(loadSnapshot) > 0 {
-				tree, err = memiavl.LoadSnapshot(loadSnapshot)
+				tree, blobs, err = memiavl.LoadTreeFromSnapshot(loadSnapshot)
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "fail to load snapshot: %s", loadSnapshot)
+				}
+				if blobs != nil {
+					defer blobs.Close()
 				}
 				fmt.Printf("snapshot loaded: %d %X\n", tree.Version(), tree.RootHash())
 			} else {

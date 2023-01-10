@@ -3,8 +3,13 @@ package memiavl
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+
+	"github.com/ledgerwatch/erigon-lib/mmap"
 )
 
 func WriteSnapshot(root Node, version int64, nodesFile, keysFile, valuesFile, metadataFile string) error {
@@ -158,4 +163,103 @@ func (w *snapshotWriter) writeRecursive(node Node) (uint64, uint64, error) {
 	i := w.nodesIndex
 	w.nodesIndex++
 	return i, minimalKeyOffset, nil
+}
+
+func loadSnapshot(snapshotDir string) (*PersistedBlobs, uint64, uint64, error) {
+	nodesFile := filepath.Join(snapshotDir, "nodes")
+	keysFile := filepath.Join(snapshotDir, "keys")
+	valuesFile := filepath.Join(snapshotDir, "values")
+	metadataFile := filepath.Join(snapshotDir, "metadata")
+
+	bz, err := os.ReadFile(metadataFile)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	version := binary.LittleEndian.Uint64(bz[:])
+	rootIndex := binary.LittleEndian.Uint64(bz[8:])
+
+	fpNodes, err := os.Open(nodesFile)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	nodes, nodesHandle, err := Mmap(fpNodes)
+	if err != nil {
+		fpNodes.Close()
+		return nil, 0, 0, err
+	}
+
+	if len(nodes) == 0 {
+		// empty tree
+		if rootIndex != 0 {
+			return nil, 0, 0, errors.New("corrupted snapshot, nodes are empty but rootIndex is not zero")
+		}
+		mmap.Munmap(nodes, nodesHandle)
+		fpNodes.Close()
+		return nil, 0, 0, nil
+	}
+
+	if uint64(len(nodes)) != (rootIndex+1)*SizeNode {
+		mmap.Munmap(nodes, nodesHandle)
+		fpNodes.Close()
+		return nil, 0, 0, fmt.Errorf("nodes file size %d don't match root node index %d", len(nodes), rootIndex)
+	}
+
+	fpKeys, err := os.Open(keysFile)
+	if err != nil {
+		mmap.Munmap(nodes, nodesHandle)
+		fpNodes.Close()
+		return nil, 0, 0, err
+	}
+	keys, keysHandle, err := Mmap(fpKeys)
+	if err != nil {
+		mmap.Munmap(nodes, nodesHandle)
+		fpNodes.Close()
+		mmap.Munmap(keys, keysHandle)
+		fpKeys.Close()
+		return nil, 0, 0, err
+	}
+
+	fpValues, err := os.Open(valuesFile)
+	if err != nil {
+		mmap.Munmap(nodes, nodesHandle)
+		fpNodes.Close()
+		mmap.Munmap(keys, keysHandle)
+		fpKeys.Close()
+		return nil, 0, 0, err
+	}
+	values, valuesHandle, err := Mmap(fpValues)
+	if err != nil {
+		mmap.Munmap(nodes, nodesHandle)
+		fpNodes.Close()
+		mmap.Munmap(keys, keysHandle)
+		fpKeys.Close()
+		mmap.Munmap(values, valuesHandle)
+		fpValues.Close()
+		return nil, 0, 0, err
+	}
+
+	blobs := &PersistedBlobs{
+		nodesFile:  fpNodes,
+		keysFile:   fpKeys,
+		valuesFile: fpValues,
+
+		nodes:  nodes,
+		keys:   keys,
+		values: values,
+
+		nodesHandle:  nodesHandle,
+		keysHandle:   keysHandle,
+		valuesHandle: valuesHandle,
+	}
+
+	return blobs, version, rootIndex, nil
+}
+
+func Mmap(f *os.File) ([]byte, *[mmap.MaxMapSize]byte, error) {
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, nil, err
+	}
+	return mmap.Mmap(f, int(fi.Size()))
 }

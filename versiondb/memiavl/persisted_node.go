@@ -3,6 +3,8 @@ package memiavl
 import (
 	"encoding/binary"
 	"os"
+
+	"github.com/ledgerwatch/erigon-lib/mmap"
 )
 
 const (
@@ -27,16 +29,25 @@ type PersistedBlobs struct {
 	nodes  []byte
 	keys   []byte
 	values []byte
+
+	// mmap handle for windows (this is used to close mmap)
+	nodesHandle  *[mmap.MaxMapSize]byte
+	keysHandle   *[mmap.MaxMapSize]byte
+	valuesHandle *[mmap.MaxMapSize]byte
 }
 
-func (blobs *PersistedBlobs) Node(offset uint64) PersistedNode {
+func (blobs *PersistedBlobs) Node(index uint64) PersistedNode {
 	return PersistedNode{
 		blobs:  blobs,
-		offset: offset,
+		offset: index * SizeNode,
 	}
 }
 
 func (blobs *PersistedBlobs) Close() error {
+	_ = mmap.Munmap(blobs.nodes, blobs.nodesHandle)
+	_ = mmap.Munmap(blobs.keys, blobs.keysHandle)
+	_ = mmap.Munmap(blobs.values, blobs.valuesHandle)
+
 	err1 := blobs.nodesFile.Close()
 	err2 := blobs.keysFile.Close()
 	err3 := blobs.valuesFile.Close()
