@@ -41,7 +41,7 @@ func DumpFileChangeSetCmd() *cobra.Command {
 				return err
 			}
 			store := args[0]
-			prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTmp, store))
+			prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
 			db = dbm.NewPrefixDB(db, prefix)
 
 			cacheSize := cast.ToInt(ctx.Viper.Get(server.FlagIAVLCacheSize))

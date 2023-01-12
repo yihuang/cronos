@@ -39,7 +39,7 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 
 			var prefix []byte
 			if len(store) > 0 {
-				prefix = []byte(fmt.Sprintf(tsrocksdb.StorePrefixTmp, store))
+				prefix = []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
 			}
 
 			sstBatchWriter, err := newTSSSTWriter(batchSize, sstFile, prefix)
@@ -118,6 +118,7 @@ func newTSSSTWriter(batchSize int, fileName string, prefix []byte) (*tsSSTWriter
 		batchSize: batchSize,
 		fileName:  fileName,
 		batch:     newBTree(),
+		prefix:    prefix,
 	}, nil
 }
 

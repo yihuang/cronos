@@ -14,7 +14,7 @@ import (
 const (
 	TimestampSize = 8
 
-	StorePrefixTmp   = "s/k:%s/"
+	StorePrefixTpl   = "s/k:%s/"
 	latestVersionKey = "s/latest"
 )
 
@@ -157,7 +157,7 @@ func newTSReadOptions(version *int64) *grocksdb.ReadOptions {
 }
 
 func storePrefix(storeKey string) []byte {
-	return []byte(fmt.Sprintf(StorePrefixTmp, storeKey))
+	return []byte(fmt.Sprintf(StorePrefixTpl, storeKey))
 }
 
 // prependStoreKey prepends storeKey to the key
