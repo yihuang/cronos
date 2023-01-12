@@ -39,6 +39,7 @@ func OpenVersionDB(dir string, parallelCompaction bool) (*grocksdb.DB, *grocksdb
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetCreateIfMissing(true)
 	opts.SetCreateIfMissingColumnFamilies(true)
+	opts.SetAllowIngestBehind(true)
 	if parallelCompaction {
 		opts.SetMaxSubcompactions(uint32(runtime.NumCPU()))
 	}

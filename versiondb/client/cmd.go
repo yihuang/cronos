@@ -35,6 +35,12 @@ func IngestSSTCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			ingestBehind, err := cmd.Flags().GetBool(flagIngestBehind)
+			if err != nil {
+				return err
+			}
+
 			db, cfHandle, err := tsrocksdb.OpenVersionDB(dbPath, true)
 			if err != nil {
 				return err
@@ -42,10 +48,13 @@ func IngestSSTCmd() *cobra.Command {
 			if len(args) > 1 {
 				ingestOpts := grocksdb.NewDefaultIngestExternalFileOptions()
 				ingestOpts.SetMoveFiles(moveFiles)
+				ingestOpts.SetIngestionBehind(ingestBehind)
 				if err := db.IngestExternalFileCF(cfHandle, args[1:], ingestOpts); err != nil {
 					return err
 				}
-				db.CompactRangeCF(cfHandle, grocksdb.Range{})
+				if !ingestBehind {
+					db.CompactRangeCF(cfHandle, grocksdb.Range{})
+				}
 			}
 
 			maxVersion, err := cmd.Flags().GetInt64(flagMaximumVersion)
@@ -71,5 +80,6 @@ func IngestSSTCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool(flagMoveFiles, false, "move sst files instead of copy them")
 	cmd.Flags().Int64(flagMaximumVersion, 0, "Specify the maximum version covered by the ingested files, if it's bigger than existing recorded latest version, will update it.")
+	cmd.Flags().Bool(flagIngestBehind, false, "Set ingestion behind flag in rocksdb")
 	return cmd
 }

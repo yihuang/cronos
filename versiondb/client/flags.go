@@ -15,4 +15,5 @@ const (
 	flagTargetVersion    = "target-version"
 	flagSaveSnapshot     = "save-snapshot"
 	flagLoadSnapshot     = "load-snapshot"
+	flagIngestBehind     = "ingest-behind"
 )
