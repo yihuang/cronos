@@ -39,7 +39,9 @@ func OpenVersionDB(dir string, parallelCompaction bool) (*grocksdb.DB, *grocksdb
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetCreateIfMissing(true)
 	opts.SetCreateIfMissingColumnFamilies(true)
-	opts.SetMaxSubcompactions(uint32(runtime.NumCPU()))
+	if parallelCompaction {
+		opts.SetMaxSubcompactions(uint32(runtime.NumCPU()))
+	}
 	db, cfHandles, err := grocksdb.OpenDbColumnFamilies(
 		opts, dir, []string{"default", VersionDBCFName},
 		[]*grocksdb.Options{opts, NewVersionDBOpts()},
