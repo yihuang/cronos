@@ -154,18 +154,18 @@ func newSSTFileWriter() *grocksdb.SSTFileWriter {
 	return grocksdb.NewSSTFileWriter(envOpts, newSSTFileWriterOpts())
 }
 
+// newSSTFileWriterOpts returns the options for sst file writer,
+// usually an full compaction will happen after ingesting the sst files,
+// so we don't enable filters and heavier compression here,
+// and use bigger block size to lower overhead of index.
 func newSSTFileWriterOpts() *grocksdb.Options {
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetComparator(tsrocksdb.CreateTSComparator())
 
 	// block based table options
 	blkOpts := grocksdb.NewDefaultBlockBasedTableOptions()
-	blkOpts.SetBlockSize(32 * 1024)
-	blkOpts.SetIndexType(grocksdb.KTwoLevelIndexSearchIndexType)
-	blkOpts.SetPartitionFilters(true)
-	blkOpts.SetDataBlockIndexType(grocksdb.KDataBlockIndexTypeBinarySearchAndHash)
+	blkOpts.SetBlockSize(64 * 1024)
 	opts.SetBlockBasedTableFactory(blkOpts)
-	opts.SetOptimizeFiltersForHits(true)
 	return opts
 }
 
