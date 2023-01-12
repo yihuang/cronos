@@ -26,12 +26,12 @@ func NewVersionDBOpts() *grocksdb.Options {
 	opts.SetOptimizeFiltersForHits(true)
 
 	// compression at bottommost level
-	opts.SetBottommostCompression(grocksdb.ZSTDCompression)
-	compressOpts := grocksdb.NewDefaultCompressionOptions()
-	compressOpts.MaxDictBytes = 112640 // 110k
-	compressOpts.Level = 12
-	opts.SetBottommostCompressionOptions(compressOpts, true)
-	opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
+	// opts.SetBottommostCompression(grocksdb.ZSTDCompression)
+	// compressOpts := grocksdb.NewDefaultCompressionOptions()
+	// compressOpts.MaxDictBytes = 112640 // 110k
+	// compressOpts.Level = 12
+	// opts.SetBottommostCompressionOptions(compressOpts, true)
+	// opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
 	return opts
 }
 
