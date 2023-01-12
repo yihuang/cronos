@@ -1,6 +1,8 @@
 package client
 
 import (
+	"fmt"
+
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
 
@@ -45,19 +47,28 @@ func IngestSSTCmd() *cobra.Command {
 				}
 			}
 
-			latestVersion, err := cmd.Flags().GetInt64(flagSetLatestVersion)
+			maxVersion, err := cmd.Flags().GetInt64(flagMaximumVersion)
 			if err != nil {
 				return err
 			}
-			if latestVersion > 0 {
+			if maxVersion > 0 {
 				// update latest version
 				store := tsrocksdb.NewStoreWithDB(db, cfHandle)
-				store.SetLatestVersion(latestVersion)
+				latestVersion, err := store.GetLatestVersion()
+				if err != nil {
+					return err
+				}
+				if maxVersion > latestVersion {
+					fmt.Println("update latest version to", latestVersion)
+					if err := store.SetLatestVersion(latestVersion); err != nil {
+						return err
+					}
+				}
 			}
 			return nil
 		},
 	}
 	cmd.Flags().Bool(flagMoveFiles, false, "move sst files instead of copy them")
-	cmd.Flags().Int64(flagSetLatestVersion, 0, "set the latest version to specified one")
+	cmd.Flags().Int64(flagMaximumVersion, 0, "Specify the maximum version covered by the ingested files, if it's bigger than existing recorded latest version, will update it.")
 	return cmd
 }

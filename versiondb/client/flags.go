@@ -11,7 +11,7 @@ const (
 	flagBatchSize        = "batch-size"
 	flagMoveFiles        = "move-files"
 	flagStore            = "store"
-	flagSetLatestVersion = "set-latest-version"
+	flagMaximumVersion   = "maximum-version"
 	flagTargetVersion    = "target-version"
 	flagSaveSnapshot     = "save-snapshot"
 	flagLoadSnapshot     = "load-snapshot"
