@@ -1,15 +1,14 @@
 { lib
 , buildGoApplication
 , nix-gitignore
-, rocksdb ? null
+, rocksdb
 , network ? "mainnet"  # mainnet|testnet
 , rev ? "dirty"
 }:
 let
   version = "v1.0.1";
   pname = "cronosd";
-  tags = [ "ledger" "netgo" network ]
-    ++ lib.lists.optionals (rocksdb != null) [ "rocksdb" "rocksdb_build" ];
+  tags = [ "ledger" "netgo" network "rocksdb" "grocksdb_clean_link" ];
   ldflags = lib.concatStringsSep "\n" ([
     "-X github.com/cosmos/cosmos-sdk/version.Name=cronos"
     "-X github.com/cosmos/cosmos-sdk/version.AppName=${pname}"

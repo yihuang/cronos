@@ -2373,8 +2373,8 @@ github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:
 github.com/yagipy/maintidx v1.0.0/go.mod h1:0qNf/I/CCZXSMhsRsrEPDZ+DkekpKLXAJfsTACwgXLk=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
 github.com/yeya24/promlinter v0.2.0/go.mod h1:u54lkmBOZrpEbQQ6gox2zWKKLKu2SGe+2KOiextY+IA=
-github.com/yihuang/grocksdb v1.7.11-0.20221223014353-a4fa14d1759b h1:wMYs9akWGUHRJZDsnmN0gLJWHI9UZ+nmCxyk7bqWiwY=
-github.com/yihuang/grocksdb v1.7.11-0.20221223014353-a4fa14d1759b/go.mod h1:0hTf+iA+GOr0jDX4CgIYyJZxqOH9XlBh6KVj8+zmF34=
+github.com/yihuang/grocksdb v1.7.11-0.20230112025116-f41883a71db3 h1:tLZ8PYj0WknvIkjIBrNn2CkN0MtnVHWkH6b0LE8eYPA=
+github.com/yihuang/grocksdb v1.7.11-0.20230112025116-f41883a71db3/go.mod h1:0hTf+iA+GOr0jDX4CgIYyJZxqOH9XlBh6KVj8+zmF34=
 github.com/yihuang/iavl v0.16.1-0.20230111025924-ae78cc50ad97 h1:GWbKhTU1+x75msgIT11FHJips/9nsXGmNu96KFTBkTU=
 github.com/yihuang/iavl v0.16.1-0.20230111025924-ae78cc50ad97/go.mod h1:X9PKD3J0iFxdmgNLa7b2LYWdsGd90ToV5cAONApkEPw=
 github.com/yihuang/tm-db v0.0.0-20230103092224-3f21822ed03e h1:2aFuR5EgQO3C/MHXqLUAlvmQRJ9xuWd9z8VdeqtMsVs=

@@ -22,6 +22,9 @@ var (
 	errKeyEmpty = errors.New("key cannot be empty")
 
 	_ versiondb.VersionStore = Store{}
+
+	defaultWriteOpts = grocksdb.NewDefaultWriteOptions()
+	defaultReadOpts  = grocksdb.NewDefaultReadOptions()
 )
 
 type Store struct {
@@ -50,7 +53,7 @@ func NewStoreWithDB(db *grocksdb.DB, cfHandle *grocksdb.ColumnFamilyHandle) Stor
 func (s Store) SetLatestVersion(version int64) error {
 	var ts [TimestampSize]byte
 	binary.LittleEndian.PutUint64(ts[:], uint64(version))
-	return s.db.Put(grocksdb.NewDefaultWriteOptions(), []byte(latestVersionKey), ts[:])
+	return s.db.Put(defaultWriteOpts, []byte(latestVersionKey), ts[:])
 }
 
 // PutAtVersion implements VersionStore interface
@@ -71,7 +74,7 @@ func (s Store) PutAtVersion(version int64, changeSet []types.StoreKVPair) error 
 		}
 	}
 
-	return s.db.Write(grocksdb.NewDefaultWriteOptions(), batch)
+	return s.db.Write(defaultWriteOpts, batch)
 }
 
 func (s Store) GetAtVersionSlice(storeKey string, key []byte, version *int64) (*grocksdb.Slice, error) {
@@ -104,7 +107,7 @@ func (s Store) HasAtVersion(storeKey string, key []byte, version *int64) (bool, 
 // it's committed after the changesets, so the data for this version is guaranteed to be persisted.
 // returns -1 if the key don't exists.
 func (s Store) GetLatestVersion() (int64, error) {
-	bz, err := s.db.GetBytes(grocksdb.NewDefaultReadOptions(), []byte(latestVersionKey))
+	bz, err := s.db.GetBytes(defaultReadOpts, []byte(latestVersionKey))
 	if err != nil {
 		return 0, err
 	}

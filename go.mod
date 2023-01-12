@@ -206,7 +206,7 @@ replace (
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
-	github.com/linxGnu/grocksdb => github.com/yihuang/grocksdb v1.7.11-0.20221223014353-a4fa14d1759b
+	github.com/linxGnu/grocksdb => github.com/yihuang/grocksdb v1.7.11-0.20230112025116-f41883a71db3
 
 	// TODO: remove when gravity update dependencies
 	github.com/peggyjv/gravity-bridge/module/v2 => github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20220815102151-48275db7e1ee
