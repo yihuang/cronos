@@ -35,7 +35,7 @@ func IngestSSTCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			db, cfHandle, err := tsrocksdb.OpenVersionDB(dbPath)
+			db, cfHandle, err := tsrocksdb.OpenVersionDB(dbPath, true)
 			if err != nil {
 				return err
 			}
@@ -45,6 +45,7 @@ func IngestSSTCmd() *cobra.Command {
 				if err := db.IngestExternalFileCF(cfHandle, args[1:], ingestOpts); err != nil {
 					return err
 				}
+				db.CompactRangeCF(cfHandle, grocksdb.Range{})
 			}
 
 			maxVersion, err := cmd.Flags().GetInt64(flagMaximumVersion)

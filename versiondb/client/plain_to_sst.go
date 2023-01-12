@@ -16,9 +16,7 @@ import (
 	"github.com/tidwall/btree"
 )
 
-const (
-	SSTFileExtension = ".sst"
-)
+const SSTFileExtension = ".sst"
 
 func ConvertPlainToSSTTSCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -153,7 +151,22 @@ func (w *tsSSTWriter) AddChangeSet(version int64, changeSet *versiondb.ChangeSet
 
 func newSSTFileWriter() *grocksdb.SSTFileWriter {
 	envOpts := grocksdb.NewDefaultEnvOptions()
-	return grocksdb.NewSSTFileWriter(envOpts, tsrocksdb.NewVersionDBOpts())
+	return grocksdb.NewSSTFileWriter(envOpts, newSSTFileWriterOpts())
+}
+
+func newSSTFileWriterOpts() *grocksdb.Options {
+	opts := grocksdb.NewDefaultOptions()
+	opts.SetComparator(tsrocksdb.CreateTSComparator())
+
+	// block based table options
+	blkOpts := grocksdb.NewDefaultBlockBasedTableOptions()
+	blkOpts.SetBlockSize(32 * 1024)
+	blkOpts.SetIndexType(grocksdb.KTwoLevelIndexSearchIndexType)
+	blkOpts.SetPartitionFilters(true)
+	blkOpts.SetDataBlockIndexType(grocksdb.KDataBlockIndexTypeBinarySearchAndHash)
+	opts.SetBlockBasedTableFactory(blkOpts)
+	opts.SetOptimizeFiltersForHits(true)
+	return opts
 }
 
 func (w *tsSSTWriter) writeBatch(sstFile string) error {

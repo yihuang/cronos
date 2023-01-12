@@ -33,7 +33,7 @@ type Store struct {
 }
 
 func NewStore(dir string) (Store, error) {
-	db, cfHandle, err := OpenVersionDB(dir)
+	db, cfHandle, err := OpenVersionDB(dir, false)
 	if err != nil {
 		return Store{}, err
 	}
