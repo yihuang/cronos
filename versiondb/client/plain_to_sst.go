@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/crypto-org-chain/cronos/versiondb"
+	"github.com/cosmos/iavl"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
@@ -48,7 +48,7 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 			}
 
 			return withPlainInput(plainFile, func(reader io.Reader) error {
-				offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) (bool, error) {
+				offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) (bool, error) {
 					if err := sstBatchWriter.AddChangeSet(version, changeSet); err != nil {
 						return false, err
 					}
@@ -127,7 +127,7 @@ func (w *tsSSTWriter) batchFileName() string {
 	return stem + fmt.Sprintf("-%d", w.batchSeq) + SSTFileExtension
 }
 
-func (w *tsSSTWriter) AddChangeSet(version int64, changeSet *versiondb.ChangeSet) error {
+func (w *tsSSTWriter) AddChangeSet(version int64, changeSet *iavl.ChangeSet) error {
 	if len(changeSet.Pairs) == 0 {
 		return nil
 	}

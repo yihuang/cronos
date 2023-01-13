@@ -1,5 +1,12 @@
 # Alternative IAVL Implementation
 
+## Changelog
+
+
+
+* 11 Jan 2023: Initial version
+* 13 Jan 2023: Change changeset encoding from protobuf to plain one
+
 ## The Journey
 
 It started for an use case of verifying the state change sets, we need to replay the change sets to rebuild IAVL tree and check the final IAVL root hash, compare the root hash with the on-chain hash to verify the integrity of the change sets.
@@ -28,8 +35,12 @@ It also integrates well with versiondb, because versiondb can also be derived fr
 
 ```
 version: int64
-size: int64
-payload: protobuf encoded ChangeSet message
+size: int64        // size of whole payload
+payload:
+  keylen: int16
+  key
+  valuelen: int32  // deletion entry has 0 length value
+  value
 
 repeat with next version
 ```

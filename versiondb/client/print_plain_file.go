@@ -1,14 +1,13 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 
-	"github.com/cosmos/gogoproto/jsonpb"
+	"github.com/cosmos/iavl"
 	"github.com/spf13/cobra"
-
-	"github.com/crypto-org-chain/cronos/versiondb"
 )
 
 func PrintPlainFileCmd() *cobra.Command {
@@ -31,9 +30,8 @@ func PrintPlainFileCmd() *cobra.Command {
 				return err
 			}
 
-			marshaler := jsonpb.Marshaler{}
 			return withPlainInput(args[0], func(reader io.Reader) error {
-				offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) (bool, error) {
+				offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) (bool, error) {
 					if version < startVersion {
 						return true, nil
 					}
@@ -42,7 +40,7 @@ func PrintPlainFileCmd() *cobra.Command {
 					}
 					fmt.Printf("version: %d\n", version)
 					for _, pair := range changeSet.Pairs {
-						js, err := marshaler.MarshalToString(pair)
+						js, err := json.Marshal(pair)
 						if err != nil {
 							return false, err
 						}

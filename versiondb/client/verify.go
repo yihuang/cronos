@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"cosmossdk.io/errors"
+	"github.com/cosmos/iavl"
 	"github.com/spf13/cobra"
 
-	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/memiavl"
 )
 
@@ -58,7 +58,7 @@ func VerifyPlainFileCmd() *cobra.Command {
 
 			for _, fileName := range args {
 				if err := withPlainInput(fileName, func(reader io.Reader) error {
-					offset, err := readPlainFile(reader, func(version int64, changeSet *versiondb.ChangeSet) (bool, error) {
+					offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) (bool, error) {
 						if version <= tree.Version() {
 							// skip old change sets
 							return true, nil

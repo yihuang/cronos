@@ -2,16 +2,18 @@ package client
 
 import (
 	"bufio"
+	"bytes"
 	"compress/zlib"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
 
 	"github.com/cosmos/iavl"
-	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tm-db"
@@ -19,7 +21,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 
-	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
@@ -174,29 +175,48 @@ func dumpRangeBlocks(writer io.Writer, tree *iavl.ImmutableTree, startVersion, e
 	var versionHeader [16]byte
 	return tree.TraverseStateChanges(startVersion, endVersion, func(version int64, changeSet *iavl.ChangeSet) error {
 		// convert to protobuf type
-		protoChangeSet := versiondb.ChangeSet{
-			Pairs: make([]*versiondb.KVPair, len(changeSet.Pairs)),
-		}
-		for i, pair := range changeSet.Pairs {
-			protoChangeSet.Pairs[i] = &versiondb.KVPair{
-				Delete: pair.Delete,
-				Key:    pair.Key,
-				Value:  pair.Value,
+		buf := bytes.NewBuffer([]byte{})
+		for _, pair := range changeSet.Pairs {
+			var lenBuf [4]byte
+			if len(pair.Key) > math.MaxUint16 {
+				return fmt.Errorf("key length %d is too big", len(pair.Key))
+			}
+			binary.LittleEndian.PutUint16(lenBuf[:], uint16(len(pair.Key)))
+			if _, err := buf.Write(lenBuf[:2]); err != nil {
+				return err
+			}
+			if _, err := buf.Write(pair.Key); err != nil {
+				return err
+			}
+			if pair.Delete {
+				binary.LittleEndian.PutUint32(lenBuf[:], 0)
+				if _, err := buf.Write(lenBuf[:]); err != nil {
+					return err
+				}
+			} else {
+				if len(pair.Value) == 0 {
+					return errors.New("set empty value not allowed")
+				}
+				if len(pair.Value) > math.MaxUint32 {
+					return fmt.Errorf("value length %d is too big", len(pair.Value))
+				}
+				binary.LittleEndian.PutUint32(lenBuf[:], uint32(len(pair.Value)))
+				if _, err := buf.Write(lenBuf[:]); err != nil {
+					return err
+				}
+				if _, err := buf.Write(pair.Value); err != nil {
+					return err
+				}
 			}
 		}
 
-		bz, err := proto.Marshal(&protoChangeSet)
-		if err != nil {
-			return err
-		}
-
 		binary.LittleEndian.PutUint64(versionHeader[:8], uint64(version))
-		binary.LittleEndian.PutUint64(versionHeader[8:16], uint64(len(bz)))
+		binary.LittleEndian.PutUint64(versionHeader[8:16], uint64(buf.Len()))
 
 		if _, err := writer.Write(versionHeader[:]); err != nil {
 			return err
 		}
-		if _, err := writer.Write(bz); err != nil {
+		if _, err := buf.WriteTo(writer); err != nil {
 			return err
 		}
 		return nil
