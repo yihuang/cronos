@@ -15,6 +15,13 @@ const (
 	CompressedFileSuffix = ".zz"
 )
 
+func cloneAppend(bz []byte, tail []byte) (res []byte) {
+	res = make([]byte, len(bz)+len(tail))
+	copy(res, bz)
+	copy(res[len(bz):], tail)
+	return
+}
+
 func withPlainInput(plainFile string, fn func(io.Reader) error) error {
 	var reader io.Reader
 	if plainFile == "-" {
@@ -37,15 +44,13 @@ func withPlainInput(plainFile string, fn func(io.Reader) error) error {
 	return fn(reader)
 }
 
-func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.ChangeSet) (bool, error), parseChangeset bool) (int, error) {
+func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.ChangeSet) (bool, error), parseChangeset bool) (uint64, error) {
 	var (
 		err             error
 		written         int64
 		versionHeader   [16]byte
-		lastValidOffset int
+		lastValidOffset uint64
 	)
-
-	seeker, isSeeker := input.(io.Seeker)
 
 	cont := true
 	lastValidOffset = 0
@@ -54,21 +59,24 @@ func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.Chang
 			break
 		}
 		version := binary.LittleEndian.Uint64(versionHeader[:8])
-		size := int(binary.LittleEndian.Uint64(versionHeader[8:16]))
+		size := uint64(binary.LittleEndian.Uint64(versionHeader[8:16]))
 		var changeSet iavl.ChangeSet
 		if size > 0 {
 			if parseChangeset {
-				var lenBuf [4]byte
-				for {
-					if _, err := input.Read(lenBuf[:2]); err != nil {
-						return lastValidOffset, err
+				var (
+					lenBuf [4]byte
+					offset uint64
+				)
+				for offset < size {
+					if _, err = io.ReadFull(input, lenBuf[:2]); err != nil {
+						break
 					}
 					key := make([]byte, binary.LittleEndian.Uint16(lenBuf[:2]))
-					if _, err := input.Read(key); err != nil {
-						return lastValidOffset, err
+					if _, err = io.ReadFull(input, key); err != nil {
+						break
 					}
-					if _, err := input.Read(lenBuf[:]); err != nil {
-						return lastValidOffset, err
+					if _, err = io.ReadFull(input, lenBuf[:]); err != nil {
+						break
 					}
 					pair := iavl.KVPair{
 						Key: key,
@@ -78,17 +86,17 @@ func readPlainFile(input io.Reader, fn func(version int64, changeSet *iavl.Chang
 						pair.Delete = true
 					} else {
 						value := make([]byte, valueLen)
-						if _, err := input.Read(value); err != nil {
-							return lastValidOffset, err
+						if _, err = io.ReadFull(input, value); err != nil {
+							break
 						}
 						pair.Value = value
 					}
 
 					changeSet.Pairs = append(changeSet.Pairs, pair)
+					offset += 2 + uint64(len(key)) + 4 + uint64(valueLen)
 				}
-			} else if isSeeker {
-				if _, err := seeker.Seek(int64(size), io.SeekCurrent); err != nil {
-					return lastValidOffset, err
+				if err != nil {
+					break
 				}
 			} else {
 				if written, err = io.CopyN(io.Discard, input, int64(size)); err != nil {

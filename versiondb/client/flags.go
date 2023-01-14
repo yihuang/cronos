@@ -8,7 +8,7 @@ const (
 	flagNoParseChangeset = "no-parse-changeset"
 	flagChunkSize        = "chunk-size"
 	flagZlibLevel        = "zlib-level"
-	flagBatchSize        = "batch-size"
+	flagSSTFileSize      = "sst-file-size"
 	flagMoveFiles        = "move-files"
 	flagStore            = "store"
 	flagMaximumVersion   = "maximum-version"
@@ -16,4 +16,5 @@ const (
 	flagSaveSnapshot     = "save-snapshot"
 	flagLoadSnapshot     = "load-snapshot"
 	flagIngestBehind     = "ingest-behind"
+	flagSorterChunkSize  = "sorter-chunk-size"
 )
