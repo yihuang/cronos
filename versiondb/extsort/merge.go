@@ -1,6 +1,8 @@
-package outersort
+package extsort
 
-import "container/heap"
+import (
+	"container/heap"
+)
 
 type heapEntry struct {
 	stream NextFunc
@@ -26,14 +28,14 @@ func (entry *heapEntry) update() (err error) {
 	return
 }
 
-type MultiMerge2 struct {
+type MultiWayMerge struct {
 	entries    []*heapEntry
 	lesserFunc LesserFunc
 }
 
-var _ heap.Interface = (*MultiMerge2)(nil)
+var _ heap.Interface = (*MultiWayMerge)(nil)
 
-func NewMultiMerge2(streams []NextFunc, lesserFunc LesserFunc) (*MultiMerge2, error) {
+func NewMultiWayMerge(streams []NextFunc, lesserFunc LesserFunc) (*MultiWayMerge, error) {
 	var entries []*heapEntry
 	for _, stream := range streams {
 		entry, err := newHeapEntry(stream)
@@ -45,44 +47,50 @@ func NewMultiMerge2(streams []NextFunc, lesserFunc LesserFunc) (*MultiMerge2, er
 		}
 	}
 
-	return &MultiMerge2{
+	merge := &MultiWayMerge{
 		entries:    entries,
 		lesserFunc: lesserFunc,
-	}, nil
+	}
+
+	heap.Init(merge)
+
+	return merge, nil
 }
 
-func (merge *MultiMerge2) Len() int {
+func (merge *MultiWayMerge) Len() int {
 	return len(merge.entries)
 }
 
-func (merge *MultiMerge2) Swap(i, j int) {
+func (merge *MultiWayMerge) Swap(i, j int) {
 	merge.entries[i], merge.entries[j] = merge.entries[j], merge.entries[i]
 }
 
-func (merge *MultiMerge2) Less(i, j int) bool {
+func (merge *MultiWayMerge) Less(i, j int) bool {
 	return merge.lesserFunc(merge.entries[i].value, merge.entries[j].value)
 }
 
-func (merge *MultiMerge2) Push(x interface{}) {
+func (merge *MultiWayMerge) Push(x interface{}) {
 	entry := x.(*heapEntry)
 	merge.entries = append(merge.entries, entry)
 }
 
-func (merge *MultiMerge2) Pop() interface{} {
+func (merge *MultiWayMerge) Pop() interface{} {
 	l := merge.Len()
 	item := merge.entries[l-1]
 	merge.entries = merge.entries[:l-1]
 	return item
 }
 
-func (merge *MultiMerge2) Next() ([]byte, error) {
+func (merge *MultiWayMerge) Next() ([]byte, error) {
 	if merge.Len() == 0 {
 		return nil, nil
 	}
-	min := merge.entries[0]
-	result := min.value
-	min.update()
-	if min.value == nil {
+	minEntry := merge.entries[0]
+	result := minEntry.value
+	if err := minEntry.update(); err != nil {
+		return nil, err
+	}
+	if minEntry.value == nil {
 		heap.Remove(merge, 0)
 	} else {
 		heap.Fix(merge, 0)

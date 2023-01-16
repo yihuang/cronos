@@ -1,4 +1,4 @@
-package outersort
+package extsort
 
 import (
 	"encoding/binary"
@@ -13,7 +13,7 @@ import (
 	"github.com/golang/snappy"
 )
 
-type OuterSorter struct {
+type ExtSorter struct {
 	// directory to store temporary chunk files
 	tmpDir string
 	// target chunk size
@@ -33,15 +33,15 @@ type OuterSorter struct {
 	failures []string
 }
 
-func NewOuterSorter(tmpDir string, chunkSize int64, lesserFunc LesserFunc) *OuterSorter {
-	return &OuterSorter{
+func New(tmpDir string, chunkSize int64, lesserFunc LesserFunc) *ExtSorter {
+	return &ExtSorter{
 		tmpDir:     tmpDir,
 		chunkSize:  chunkSize,
 		lesserFunc: lesserFunc,
 	}
 }
 
-func (s *OuterSorter) Feed(item []byte) error {
+func (s *ExtSorter) Feed(item []byte) error {
 	if len(item) > math.MaxUint32 {
 		return errors.New("item length overflows uint32")
 	}
@@ -55,7 +55,7 @@ func (s *OuterSorter) Feed(item []byte) error {
 	return nil
 }
 
-func (s *OuterSorter) sortChunkAndRotate() error {
+func (s *ExtSorter) sortChunkAndRotate() error {
 	chunkFile, err := os.CreateTemp(s.tmpDir, "sort-chunk-*")
 	if err != nil {
 		return err
@@ -84,7 +84,7 @@ func (s *OuterSorter) sortChunkAndRotate() error {
 }
 
 // Finalize wait for all chunking goroutines to finish, and return the merged stream.
-func (s *OuterSorter) Finalize() (*MultiMerge2, error) {
+func (s *ExtSorter) Finalize() (*MultiWayMerge, error) {
 	// handle the pending chunk
 	if s.currentChunkSize > 0 {
 		if err := s.sortChunkAndRotate(); err != nil {
@@ -112,11 +112,11 @@ func (s *OuterSorter) Finalize() (*MultiMerge2, error) {
 		}
 	}
 
-	return NewMultiMerge2(streams, s.lesserFunc)
+	return NewMultiWayMerge(streams, s.lesserFunc)
 }
 
 // Close closes all the temporary files
-func (s *OuterSorter) Close() error {
+func (s *ExtSorter) Close() error {
 	var err error
 	for _, chunkFile := range s.chunkFiles {
 		err1 := chunkFile.Close()

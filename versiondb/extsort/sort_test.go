@@ -1,4 +1,4 @@
-package outersort
+package extsort
 
 import (
 	"bytes"
@@ -14,8 +14,8 @@ const (
 	ItemTpl  = "testkey-%08d"
 )
 
-func doTestOuterSorter(t *testing.T, chunkSize int64, inputCount int) {
-	sorter := NewOuterSorter("/tmp", chunkSize, func(a, b []byte) bool {
+func doTestExtSorter(t *testing.T, chunkSize int64, inputCount int) {
+	sorter := New("/tmp", chunkSize, func(a, b []byte) bool {
 		return bytes.Compare(a, b) == -1
 	})
 	defer func() {
@@ -54,8 +54,8 @@ func doTestOuterSorter(t *testing.T, chunkSize int64, inputCount int) {
 	require.Equal(t, expItems, result)
 }
 
-func TestOuterSorter(t *testing.T) {
-	doTestOuterSorter(t, ItemSize*100, 100)
-	doTestOuterSorter(t, ItemSize*100, 1550)
-	doTestOuterSorter(t, ItemSize*100, 155000)
+func TestExtSort(t *testing.T) {
+	doTestExtSorter(t, ItemSize*100, 100)
+	doTestExtSorter(t, ItemSize*100, 1550)
+	doTestExtSorter(t, ItemSize*100, 155000)
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
 
-	"github.com/crypto-org-chain/cronos/versiondb/outersort"
+	"github.com/crypto-org-chain/cronos/versiondb/extsort"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
@@ -50,14 +50,14 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 				prefix = []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
 			}
 
-			outerSorter := outersort.NewOuterSorter(filepath.Dir(sstFile), sorterChunkSize, compareSorterItem)
-			defer outerSorter.Close()
+			sorter := extsort.New(filepath.Dir(sstFile), sorterChunkSize, compareSorterItem)
+			defer sorter.Close()
 			for _, plainFile := range plainFiles {
 				if err := withPlainInput(plainFile, func(reader io.Reader) error {
 					offset, err := readPlainFile(reader, func(version int64, changeSet *iavl.ChangeSet) (bool, error) {
 						for _, pair := range changeSet.Pairs {
 							item := encodeSorterItem(uint64(version), pair)
-							if err := outerSorter.Feed(item); err != nil {
+							if err := sorter.Feed(item); err != nil {
 								return false, err
 							}
 						}
@@ -76,7 +76,7 @@ func ConvertPlainToSSTTSCmd() *cobra.Command {
 				}
 			}
 
-			mergedReader, err := outerSorter.Finalize()
+			mergedReader, err := sorter.Finalize()
 			if err != nil {
 				return err
 			}
