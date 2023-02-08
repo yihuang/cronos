@@ -788,8 +788,6 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/cristalhq/acmd v0.8.1/go.mod h1:LG5oa43pE/BbxtfMoImHCQN++0Su7dzipdgBjMCBVDQ=
-github.com/crypto-org-chain/ethermint v0.20.4-cronos h1:FxwMxJC2/ELn9CDKX92/I+Q4e3NlwFZbE4sjA88OWyM=
-github.com/crypto-org-chain/ethermint v0.20.4-cronos/go.mod h1:q7CGi8HdGbVu/nfQTddr0sXiqE9spdP1QHNSKHATl9E=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable h1:VQLW0R8t9DcC/HvQZO1i0mIWjJfAezhI8lLUCholP0M=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable/go.mod h1:IJBNMtzKcNHPtllYihy6BL2IgK1u+32JriaTbdt4v+w=
 github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2 h1:Qu2GMavGHCcomdVWmZej76JpOO6uvII6IpPDdJUG+Qo=
@@ -2394,6 +2392,8 @@ github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:
 github.com/yagipy/maintidx v1.0.0/go.mod h1:0qNf/I/CCZXSMhsRsrEPDZ+DkekpKLXAJfsTACwgXLk=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
 github.com/yeya24/promlinter v0.2.0/go.mod h1:u54lkmBOZrpEbQQ6gox2zWKKLKu2SGe+2KOiextY+IA=
+github.com/yihuang/ethermint v0.20.2-cronos.0.20230208034641-d1cc7918097a h1:hEHW9VbINB5KKMSLPAzQRQRbSmR4BVdazVlbFqK3v84=
+github.com/yihuang/ethermint v0.20.2-cronos.0.20230208034641-d1cc7918097a/go.mod h1:q7CGi8HdGbVu/nfQTddr0sXiqE9spdP1QHNSKHATl9E=
 github.com/yudai/gojsondiff v1.0.0/go.mod h1:AY32+k2cwILAkW1fbgxQ5mUmMiZFgLIV+FBNExI05xg=
 github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82/go.mod h1:lgjkn3NuSvDfVJdfcVVdX+jpBxNmX4rDAzaS45IcYoM=
 github.com/yudai/pp v2.0.1+incompatible/go.mod h1:PuxR/8QJ7cyCkFp/aUDS+JY727OFEZkTdatxwunjIkc=
