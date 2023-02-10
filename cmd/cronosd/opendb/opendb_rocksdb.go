@@ -15,7 +15,7 @@ func OpenDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
 	if backendType == dbm.RocksDBBackend {
 		// customize rocksdb options
-		db, err := grocksdb.OpenDb(NewRocksdbOptions(false), filepath.Join(dataDir, "application.db"))
+		db, err := grocksdb.OpenDb(NewRocksdbOptions(), filepath.Join(dataDir, "application.db"))
 		if err != nil {
 			return nil, err
 		}
@@ -34,7 +34,7 @@ func OpenReadOnlyDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
 	if backendType == dbm.RocksDBBackend {
 		// customize rocksdb options
-		db, err := grocksdb.OpenDbForReadOnly(NewRocksdbOptions(false), filepath.Join(dataDir, "application.db"), false)
+		db, err := grocksdb.OpenDbForReadOnly(NewRocksdbOptions(), filepath.Join(dataDir, "application.db"), false)
 		if err != nil {
 			return nil, err
 		}
@@ -49,7 +49,7 @@ func OpenReadOnlyDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	return dbm.NewDB("application", backendType, dataDir)
 }
 
-func NewRocksdbOptions(sstFileWriter bool) *grocksdb.Options {
+func NewRocksdbOptions() *grocksdb.Options {
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetCreateIfMissing(true)
 	opts.IncreaseParallelism(runtime.NumCPU())
@@ -83,11 +83,9 @@ func NewRocksdbOptions(sstFileWriter bool) *grocksdb.Options {
 	// train bytes is recommended to be set at 100x dict bytes.
 	opts.SetBottommostCompression(grocksdb.ZSTDCompression)
 	compressOpts := grocksdb.NewDefaultCompressionOptions()
-	compressOpts.Level = 12
-	if !sstFileWriter {
-		compressOpts.MaxDictBytes = 110 * 1024
-		opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
-	}
+	compressOpts.Level = 2
+	compressOpts.MaxDictBytes = 110 * 1024
 	opts.SetBottommostCompressionOptions(compressOpts, true)
+	opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
 	return opts
 }

@@ -46,6 +46,10 @@ func BuildVersionDBSSTCmd(stores []string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			dictionaryCompression, err := cmd.Flags().GetBool(flagDictionaryCompression)
+			if err != nil {
+				return err
+			}
 
 			changeSetDir := args[0]
 			sstDir := args[1]
@@ -63,7 +67,9 @@ func BuildVersionDBSSTCmd(stores []string) *cobra.Command {
 				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 				store := store
 				group.Submit(func() error {
-					return convertSingleStore(store, changeSetDir, sstDir, sstFileSize, sorterChunkSize)
+					sstWriter := newSSTFileWriter(dictionaryCompression, sstFileSize)
+					defer sstWriter.Destroy()
+					return convertSingleStore(sstWriter, store, changeSetDir, sstDir, sstFileSize, sorterChunkSize)
 				})
 			}
 
@@ -75,13 +81,14 @@ func BuildVersionDBSSTCmd(stores []string) *cobra.Command {
 	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
 	cmd.Flags().Int64(flagSorterChunkSize, DefaultSorterChunkSize, "uncompressed chunk size for external sorter, it decides the peak ram usage, on disk it'll be snappy compressed")
 	cmd.Flags().Int(flagConcurrency, runtime.NumCPU(), "Number concurrent goroutines to parallelize the work")
+	cmd.Flags().Bool(flagDictionaryCompression, false, "Enable dictionary compression in generated sst file, trade speed for better compression ratio")
 
 	return cmd
 }
 
 // convertSingleStore handles a single store, can run in parallel with other stores,
 // it starts extra goroutines for parallel pipeline.
-func convertSingleStore(store string, changeSetDir, sstDir string, sstFileSize uint64, sorterChunkSize int64) error {
+func convertSingleStore(sstWriter *grocksdb.SSTFileWriter, store string, changeSetDir, sstDir string, sstFileSize uint64, sorterChunkSize int64) error {
 	csFiles, err := scanChangeSetFiles(changeSetDir, store)
 	if err != nil {
 		return err
@@ -121,9 +128,6 @@ func convertSingleStore(store string, changeSetDir, sstDir string, sstFileSize u
 		// SSTFileWriter don't support writing empty files, so we stop early here.
 		return nil
 	}
-
-	sstWriter := newSSTFileWriter()
-	defer sstWriter.Destroy()
 
 	sstSeq := 0
 	openNextFile := func() error {
@@ -189,9 +193,13 @@ func sstFileName(store string, seq int) string {
 	return fmt.Sprintf("%s-%d%s", store, seq, SSTFileExtension)
 }
 
-func newSSTFileWriter() *grocksdb.SSTFileWriter {
+func newSSTFileWriter(dictionaryCompression bool, sstFileSize uint64) *grocksdb.SSTFileWriter {
 	envOpts := grocksdb.NewDefaultEnvOptions()
-	return grocksdb.NewSSTFileWriter(envOpts, tsrocksdb.NewVersionDBOpts(true))
+	opts := tsrocksdb.NewVersionDBOpts(dictionaryCompression)
+	// this is nesserary to control sst file size when using dictionary compression,
+	// see: https://github.com/facebook/rocksdb/issues/11146
+	opts.SetCompressionOptionsMaxDictBufferBytes(sstFileSize)
+	return grocksdb.NewSSTFileWriter(envOpts, opts)
 }
 
 // encodeSorterItem encode kv-pair for use in external sorter.

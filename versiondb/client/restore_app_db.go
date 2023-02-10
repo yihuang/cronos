@@ -136,7 +136,7 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 			defer ingestOpts.Destroy()
 			ingestOpts.SetMoveFiles(true)
 
-			db, err := grocksdb.OpenDb(opendb.NewRocksdbOptions(false), iavlDir)
+			db, err := grocksdb.OpenDb(opendb.NewRocksdbOptions(), iavlDir)
 			if err != nil {
 				return errors.Wrap(err, "open iavl db fail")
 			}
@@ -187,7 +187,7 @@ func oneStore(store string, snapshot *memiavl.Snapshot, sstDir string, sstFileSi
 		return err
 	}
 
-	sstWriter := newIAVLSSTFileWriter()
+	sstWriter := newIAVLSSTFileWriter(sstFileSizeTarget)
 	defer sstWriter.Destroy()
 
 	sstSeq := 0
@@ -261,9 +261,13 @@ func writeMetadata(db *grocksdb.DB, cInfo *storetypes.CommitInfo) error {
 	return db.Put(writeOpts, []byte(latestVersionKey), bz)
 }
 
-func newIAVLSSTFileWriter() *grocksdb.SSTFileWriter {
+func newIAVLSSTFileWriter(targetFileSize uint64) *grocksdb.SSTFileWriter {
 	envOpts := grocksdb.NewDefaultEnvOptions()
-	return grocksdb.NewSSTFileWriter(envOpts, opendb.NewRocksdbOptions(true))
+	opts := opendb.NewRocksdbOptions()
+	// this is nesserary to control sst file size when using dictionary compression,
+	// see: https://github.com/facebook/rocksdb/issues/11146
+	opts.SetCompressionOptionsMaxDictBufferBytes(targetFileSize)
+	return grocksdb.NewSSTFileWriter(envOpts, opts)
 }
 
 // encodeNode encodes the node in the same way as the existing iavl implementation.

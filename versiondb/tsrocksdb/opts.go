@@ -12,7 +12,7 @@ const VersionDBCFName = "versiondb"
 // NewVersionDBOpts returns the options used for the versiondb column family.
 // FIXME: we don't enable dict compression for SSTFileWriter, because otherwise the file writer won't report correct file size.
 // https://github.com/facebook/rocksdb/issues/11146
-func NewVersionDBOpts(sstFileWriter bool) *grocksdb.Options {
+func NewVersionDBOpts(dictionaryCompression bool) *grocksdb.Options {
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetCreateIfMissing(true)
 	opts.SetComparator(CreateTSComparator())
@@ -34,12 +34,12 @@ func NewVersionDBOpts(sstFileWriter bool) *grocksdb.Options {
 	// improve sst file creation speed: compaction or sst file writer.
 	opts.SetCompressionOptionsParallelThreads(4)
 
-	if !sstFileWriter {
+	if dictionaryCompression {
 		// compression options at bottommost level
 		opts.SetBottommostCompression(grocksdb.ZSTDCompression)
 		compressOpts := grocksdb.NewDefaultCompressionOptions()
 		compressOpts.MaxDictBytes = 112640 // 110k
-		compressOpts.Level = 12
+		compressOpts.Level = 2
 		opts.SetBottommostCompressionOptions(compressOpts, true)
 		opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
 	}
@@ -55,7 +55,7 @@ func OpenVersionDB(dir string) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, erro
 	opts.SetCreateIfMissingColumnFamilies(true)
 	db, cfHandles, err := grocksdb.OpenDbColumnFamilies(
 		opts, dir, []string{"default", VersionDBCFName},
-		[]*grocksdb.Options{opts, NewVersionDBOpts(false)},
+		[]*grocksdb.Options{opts, NewVersionDBOpts(true)},
 	)
 	if err != nil {
 		return nil, nil, err
@@ -74,7 +74,7 @@ func OpenVersionDBAndTrimHistory(dir string, version int64) (*grocksdb.DB, *groc
 	opts.SetCreateIfMissingColumnFamilies(true)
 	db, cfHandles, err := grocksdb.OpenDbAndTrimHistory(
 		opts, dir, []string{"default", VersionDBCFName},
-		[]*grocksdb.Options{opts, NewVersionDBOpts(false)},
+		[]*grocksdb.Options{opts, NewVersionDBOpts(true)},
 		ts[:],
 	)
 	if err != nil {
