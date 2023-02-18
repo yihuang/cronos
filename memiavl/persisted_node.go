@@ -1,24 +1,10 @@
 package memiavl
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 )
 
 const (
-	OffsetHeight  = 0
-	OffsetVersion = OffsetHeight + 4
-	OffsetSize    = OffsetVersion + 4
-	OffsetKey     = OffsetSize + 8
-	OffsetRight   = OffsetKey + 8
-	OffsetLeft    = OffsetRight + 4
-	OffsetValue   = OffsetKey + 8
-	OffsetHash    = OffsetValue + 8
-
-	SizeHash            = sha256.Size
-	SizeNodeWithoutHash = OffsetHash
-	SizeNode            = SizeNodeWithoutHash + SizeHash
-
 	// encoding key/value length as 4 bytes with little endianness.
 	SizeKeyLen   = 4
 	SizeValueLen = 4
@@ -42,19 +28,19 @@ type PersistedNode struct {
 var _ Node = PersistedNode{}
 
 func (node PersistedNode) Height() int8 {
-	return int8(node.snapshot.nodes[node.offset+OffsetHeight])
+	return GetHeight(node.snapshot.nodes, node.offset)
 }
 
 func (node PersistedNode) Version() int64 {
-	return int64(binary.LittleEndian.Uint32(node.snapshot.nodes[node.offset+OffsetVersion:]))
+	return GetVersion(node.snapshot.nodes, node.offset)
 }
 
 func (node PersistedNode) Size() int64 {
-	return int64(binary.LittleEndian.Uint64(node.snapshot.nodes[node.offset+OffsetSize:]))
+	return GetSize(node.snapshot.nodes, node.offset)
 }
 
 func (node PersistedNode) Key() []byte {
-	keyOffset := binary.LittleEndian.Uint64(node.snapshot.nodes[node.offset+OffsetKey:])
+	keyOffset := GetKeyOffset(node.snapshot.nodes, node.offset)
 	keyLen := uint64(binary.LittleEndian.Uint32(node.snapshot.keys[keyOffset:]))
 	keyOffset += SizeKeyLen
 	return node.snapshot.keys[keyOffset : keyOffset+keyLen]
@@ -62,7 +48,7 @@ func (node PersistedNode) Key() []byte {
 
 // Value result is not defined for non-leaf node.
 func (node PersistedNode) Value() []byte {
-	valueOffset := binary.LittleEndian.Uint64(node.snapshot.nodes[node.offset+OffsetValue:])
+	valueOffset := GetValueOffset(node.snapshot.nodes, node.offset)
 	valueLen := uint64(binary.LittleEndian.Uint32(node.snapshot.values[valueOffset:]))
 	valueOffset += SizeValueLen
 	return node.snapshot.values[valueOffset : valueOffset+valueLen]
@@ -70,19 +56,18 @@ func (node PersistedNode) Value() []byte {
 
 // Left result is not defined for leaf nodes.
 func (node PersistedNode) Left() Node {
-	nodeIndex := binary.LittleEndian.Uint32(node.snapshot.nodes[node.offset+OffsetLeft:])
+	nodeIndex := GetLeftIndex(node.snapshot.nodes, node.offset)
 	return PersistedNode{snapshot: node.snapshot, offset: uint64(nodeIndex) * SizeNode}
 }
 
 // Right result is not defined for leaf nodes.
 func (node PersistedNode) Right() Node {
-	nodeIndex := binary.LittleEndian.Uint32(node.snapshot.nodes[node.offset+OffsetRight:])
+	nodeIndex := GetRightIndex(node.snapshot.nodes, node.offset)
 	return PersistedNode{snapshot: node.snapshot, offset: uint64(nodeIndex) * SizeNode}
 }
 
 func (node PersistedNode) Hash() []byte {
-	offset := node.offset + OffsetHash
-	return node.snapshot.nodes[offset : offset+SizeHash]
+	return GetHash(node.snapshot.nodes, node.offset)
 }
 
 func (node PersistedNode) Mutate(version int64) *MemNode {
