@@ -1,6 +1,7 @@
 package memiavl
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 )
@@ -148,6 +149,20 @@ func (node *MemNode) reBalance(version int64) *MemNode {
 		// nothing changed
 		return node
 	}
+}
+
+func (node *MemNode) Get(key []byte) []byte {
+	if node.isLeaf() {
+		if bytes.Equal(key, node.key) {
+			return node.value
+		}
+		return nil
+	}
+
+	if bytes.Compare(key, node.key) == -1 {
+		return node.Left().Get(key)
+	}
+	return node.Right().Get(key)
 }
 
 // EncodeBytes writes a varint length-prefixed byte slice to the writer,

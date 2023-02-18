@@ -1,7 +1,7 @@
 package memiavl
 
 import (
-	"encoding/binary"
+	"bytes"
 )
 
 const (
@@ -31,6 +31,10 @@ func (node PersistedNode) Height() int8 {
 	return GetHeight(node.snapshot.nodes, node.offset)
 }
 
+func (node PersistedNode) isLeaf() bool {
+	return node.Height() == 0
+}
+
 func (node PersistedNode) Version() int64 {
 	return GetVersion(node.snapshot.nodes, node.offset)
 }
@@ -40,18 +44,12 @@ func (node PersistedNode) Size() int64 {
 }
 
 func (node PersistedNode) Key() []byte {
-	keyOffset := GetKeyOffset(node.snapshot.nodes, node.offset)
-	keyLen := uint64(binary.LittleEndian.Uint32(node.snapshot.keys[keyOffset:]))
-	keyOffset += SizeKeyLen
-	return node.snapshot.keys[keyOffset : keyOffset+keyLen]
+	return node.snapshot.Key(GetKeyOffset(node.snapshot.nodes, node.offset))
 }
 
 // Value result is not defined for non-leaf node.
 func (node PersistedNode) Value() []byte {
-	valueOffset := GetValueOffset(node.snapshot.nodes, node.offset)
-	valueLen := uint64(binary.LittleEndian.Uint32(node.snapshot.values[valueOffset:]))
-	valueOffset += SizeValueLen
-	return node.snapshot.values[valueOffset : valueOffset+valueLen]
+	return node.snapshot.Value(GetValueOffset(node.snapshot.nodes, node.offset))
 }
 
 // Left result is not defined for leaf nodes.
@@ -84,4 +82,24 @@ func (node PersistedNode) Mutate(version int64) *MemNode {
 		mnode.right = node.Right()
 	}
 	return mnode
+}
+
+func (node PersistedNode) Get(key []byte) []byte {
+	return getPersistedNode(node.snapshot, node.offset, key)
+}
+
+func getPersistedNode(snapshot *Snapshot, offset uint64, key []byte) []byte {
+	height := GetHeight(snapshot.nodes, offset)
+	nodeKey := snapshot.Key(GetKeyOffset(snapshot.nodes, offset))
+	if height == 0 {
+		if bytes.Equal(key, nodeKey) {
+			return snapshot.Value(GetValueOffset(snapshot.nodes, offset))
+		}
+		return nil
+	}
+
+	if bytes.Compare(key, nodeKey) == -1 {
+		return getPersistedNode(snapshot, uint64(GetLeftIndex(snapshot.nodes, offset))*SizeNode, key)
+	}
+	return getPersistedNode(snapshot, uint64(GetRightIndex(snapshot.nodes, offset))*SizeNode, key)
 }

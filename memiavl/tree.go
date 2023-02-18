@@ -52,6 +52,10 @@ func (t *Tree) Remove(key []byte) {
 	_, t.root, _ = removeRecursive(t.root, key, t.version+1)
 }
 
+func (t *Tree) Get(key []byte) []byte {
+	return getRecursive(t.root, key)
+}
+
 // SaveVersion increases the version number and optionally updates the hashes
 func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
 	var hash []byte

@@ -21,10 +21,22 @@ type Node interface {
 
 	// PersistedNode clone a new node, MemNode modify in place
 	Mutate(version int64) *MemNode
+
+	// Get returns nil if not found
+	Get([]byte) []byte
 }
 
 func isLeaf(node Node) bool {
 	return node.Height() == 0
+}
+
+// getRecursive find the value for the key in the tree recursively,
+// returns nil if not found.
+func getRecursive(node Node, key []byte) []byte {
+	if node == nil {
+		return nil
+	}
+	return node.Get(key)
 }
 
 // setRecursive do set operation.

@@ -203,6 +203,18 @@ func (snapshot *Snapshot) ScanNodes(callback func(node PersistedNode) error) err
 	return nil
 }
 
+func (snapshot *Snapshot) Key(offset uint64) []byte {
+	keyLen := uint64(binary.LittleEndian.Uint32(snapshot.keys[offset : offset+4]))
+	offset += SizeKeyLen
+	return snapshot.keys[offset : offset+keyLen]
+}
+
+func (snapshot *Snapshot) Value(offset uint64) []byte {
+	valueLen := uint64(binary.LittleEndian.Uint32(snapshot.values[offset : offset+4]))
+	offset += SizeValueLen
+	return snapshot.values[offset : offset+valueLen]
+}
+
 // WriteSnapshot save the IAVL tree to a new snapshot directory.
 func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 	var rootIndex uint32
