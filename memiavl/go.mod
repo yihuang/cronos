@@ -8,6 +8,7 @@ require (
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263
 	github.com/stretchr/testify v1.8.1
 	github.com/tendermint/tm-db v0.6.7
+	github.com/tidwall/btree v1.5.0
 )
 
 require (
