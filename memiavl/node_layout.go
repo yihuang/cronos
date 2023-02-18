@@ -49,56 +49,55 @@ type NodeRef struct {
 	Index uint32
 }
 
-func GetHeight(nodes []byte, offset uint64) int8 {
-	return int8(nodes[offset])
+func GetHeight(buf []byte) int8 {
+	return int8(buf[0])
 }
 
-func GetVersion(nodes []byte, offset uint64) int64 {
-	return int64(binary.LittleEndian.Uint32(nodes[offset+OffsetVersion : offset+OffsetVersion+4]))
+func GetVersion(buf []byte) int64 {
+	return int64(binary.LittleEndian.Uint32(buf[OffsetVersion : OffsetVersion+4]))
 }
 
-func GetSize(nodes []byte, offset uint64) int64 {
-	return int64(binary.LittleEndian.Uint64(nodes[offset+OffsetSize : offset+OffsetSize+8]))
+func GetSize(buf []byte) int64 {
+	return int64(binary.LittleEndian.Uint64(buf[OffsetSize : OffsetSize+8]))
 }
 
-func GetKeyOffset(nodes []byte, offset uint64) uint64 {
-	return binary.LittleEndian.Uint64(nodes[offset+OffsetKey : offset+OffsetKey+8])
+func GetKeyOffset(buf []byte) uint64 {
+	return binary.LittleEndian.Uint64(buf[OffsetKey : OffsetKey+8])
 }
 
-func GetKeyRef(nodes []byte, offset uint64) KeyRef {
+func GetKeyRef(buf []byte) KeyRef {
 	return KeyRef{
-		Level:  (int8(nodes[offset+OffsetFlags]) >> ShiftKeyLevel) & MaskLevel,
-		Offset: GetKeyOffset(nodes, offset),
+		Level:  (int8(buf[OffsetFlags]) >> ShiftKeyLevel) & MaskLevel,
+		Offset: GetKeyOffset(buf),
 	}
 }
 
-func GetValueOffset(nodes []byte, offset uint64) uint64 {
-	return binary.LittleEndian.Uint64(nodes[offset+OffsetValue : offset+OffsetValue+8])
+func GetValueOffset(buf []byte) uint64 {
+	return binary.LittleEndian.Uint64(buf[OffsetValue : OffsetValue+8])
 }
 
-func GetLeftIndex(nodes []byte, offset uint64) uint32 {
-	return binary.LittleEndian.Uint32(nodes[offset+OffsetLeft : offset+OffsetLeft+4])
+func GetLeftIndex(buf []byte) uint32 {
+	return binary.LittleEndian.Uint32(buf[OffsetLeft : OffsetLeft+4])
 }
 
-func GetLeftRef(nodes []byte, offset uint64) NodeRef {
+func GetLeftRef(buf []byte) NodeRef {
 	return NodeRef{
-		Level: (int8(nodes[offset+OffsetFlags]) >> ShiftLeftLevel) & MaskLevel,
-		Index: GetLeftIndex(nodes, offset),
+		Level: (int8(buf[OffsetFlags]) >> ShiftLeftLevel) & MaskLevel,
+		Index: GetLeftIndex(buf),
 	}
 }
 
-func GetRightIndex(nodes []byte, offset uint64) uint32 {
-	return binary.LittleEndian.Uint32(nodes[offset+OffsetRight : offset+OffsetRight+4])
+func GetRightIndex(buf []byte) uint32 {
+	return binary.LittleEndian.Uint32(buf[OffsetRight : OffsetRight+4])
 }
 
-func GetRightRef(nodes []byte, offset uint64) NodeRef {
+func GetRightRef(buf []byte) NodeRef {
 	return NodeRef{
-		Level: (int8(nodes[offset+OffsetFlags]) >> ShiftRightLevel) & MaskLevel,
-		Index: GetRightIndex(nodes, offset),
+		Level: (int8(buf[OffsetFlags]) >> ShiftRightLevel) & MaskLevel,
+		Index: GetRightIndex(buf),
 	}
 }
 
-func GetHash(nodes []byte, offset uint64) []byte {
-	offset += OffsetHash
-	return nodes[offset : offset+SizeHash]
+func GetHash(buf []byte) []byte {
+	return buf[OffsetHash : OffsetHash+SizeHash]
 }

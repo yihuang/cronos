@@ -27,8 +27,12 @@ type PersistedNode struct {
 
 var _ Node = PersistedNode{}
 
+func (node PersistedNode) data() []byte {
+	return node.snapshot.nodes[node.offset : node.offset+SizeNode]
+}
+
 func (node PersistedNode) Height() int8 {
-	return GetHeight(node.snapshot.nodes, node.offset)
+	return GetHeight(node.data())
 }
 
 func (node PersistedNode) isLeaf() bool {
@@ -36,36 +40,36 @@ func (node PersistedNode) isLeaf() bool {
 }
 
 func (node PersistedNode) Version() int64 {
-	return GetVersion(node.snapshot.nodes, node.offset)
+	return GetVersion(node.data())
 }
 
 func (node PersistedNode) Size() int64 {
-	return GetSize(node.snapshot.nodes, node.offset)
+	return GetSize(node.data())
 }
 
 func (node PersistedNode) Key() []byte {
-	return node.snapshot.Key(GetKeyOffset(node.snapshot.nodes, node.offset))
+	return node.snapshot.Key(GetKeyOffset(node.data()))
 }
 
 // Value result is not defined for non-leaf node.
 func (node PersistedNode) Value() []byte {
-	return node.snapshot.Value(GetValueOffset(node.snapshot.nodes, node.offset))
+	return node.snapshot.Value(GetValueOffset(node.data()))
 }
 
 // Left result is not defined for leaf nodes.
 func (node PersistedNode) Left() Node {
-	nodeIndex := GetLeftIndex(node.snapshot.nodes, node.offset)
+	nodeIndex := GetLeftIndex(node.data())
 	return PersistedNode{snapshot: node.snapshot, offset: uint64(nodeIndex) * SizeNode}
 }
 
 // Right result is not defined for leaf nodes.
 func (node PersistedNode) Right() Node {
-	nodeIndex := GetRightIndex(node.snapshot.nodes, node.offset)
+	nodeIndex := GetRightIndex(node.data())
 	return PersistedNode{snapshot: node.snapshot, offset: uint64(nodeIndex) * SizeNode}
 }
 
 func (node PersistedNode) Hash() []byte {
-	return GetHash(node.snapshot.nodes, node.offset)
+	return GetHash(node.data())
 }
 
 func (node PersistedNode) Mutate(version int64) *MemNode {
@@ -89,17 +93,18 @@ func (node PersistedNode) Get(key []byte) []byte {
 }
 
 func getPersistedNode(snapshot *Snapshot, offset uint64, key []byte) []byte {
-	height := GetHeight(snapshot.nodes, offset)
-	nodeKey := snapshot.Key(GetKeyOffset(snapshot.nodes, offset))
+	buf := snapshot.nodes[offset : offset+SizeNode]
+	height := GetHeight(buf)
+	nodeKey := snapshot.Key(GetKeyOffset(buf))
 	if height == 0 {
 		if bytes.Equal(key, nodeKey) {
-			return snapshot.Value(GetValueOffset(snapshot.nodes, offset))
+			return snapshot.Value(GetValueOffset(buf))
 		}
 		return nil
 	}
 
 	if bytes.Compare(key, nodeKey) == -1 {
-		return getPersistedNode(snapshot, uint64(GetLeftIndex(snapshot.nodes, offset))*SizeNode, key)
+		return getPersistedNode(snapshot, uint64(GetLeftIndex(buf))*SizeNode, key)
 	}
-	return getPersistedNode(snapshot, uint64(GetRightIndex(snapshot.nodes, offset))*SizeNode, key)
+	return getPersistedNode(snapshot, uint64(GetRightIndex(buf))*SizeNode, key)
 }

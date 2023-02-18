@@ -30,7 +30,7 @@ func BenchmarkLoadNode(b *testing.B) {
 
 	b.Run("PersistedNode", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			_ = GetVersion(buf[:], 0) + GetSize(buf[:], 0) + int64(GetHeight(buf[:], 0))
+			_ = GetVersion(buf[:]) + GetSize(buf[:]) + int64(GetHeight(buf[:]))
 		}
 	})
 }
