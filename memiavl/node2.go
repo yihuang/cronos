@@ -93,20 +93,67 @@ func (t *Tree2) calcBalance(node *Node2) int {
 
 func (t *Tree2) reBalance(i int64, version int64) int64 {
 	node := t.node(i)
+
+	// inline t.updateHeightSize(node)
 	left := t.node(node.left)
 	right := t.node(node.right)
-	balance := t.calcBalance(node)
+	node.mutate(version)
+	node.height = maxInt8(left.height, right.height) + 1
+	node.size = left.size + right.size
+
+	// inline t.calcBalance(node)
+	balance := int(left.height - right.height)
 
 	switch {
 	case balance > 1:
-		leftBalance := t.calcBalance(left)
+		// inline t.calcBalance(left)
+		leftLeft := t.node(left.left)
+		leftRight := t.node(left.right)
+		leftBalance := int(leftLeft.height - leftRight.height)
 		if leftBalance >= 0 {
 			// left left
-			return t.rotateRight(i, version)
+			// inline t.rotateRight(i, version)
+			result := node.left
+			node.left = left.right
+			left.setRight(i, version)
+
+			// inline t.updateHeightSize(node)
+			node.height = maxInt8(leftRight.height, right.height) + 1
+			node.size = leftRight.size + right.size
+			// inline t.updateHeightSize(left)
+			left.height = maxInt8(leftLeft.height, node.height) + 1
+			left.size = leftLeft.size + node.size
+			return result
 		}
 		// left right
-		node.left = t.rotateLeft(node.left, version)
-		return t.rotateRight(i, version)
+		leftRightLeft := t.node(leftRight.left)
+		leftRightRight := t.node(leftRight.right)
+		node.left = left.right
+		// inline t.rotateLeft(node.left, version)
+		left.setRight(leftRight.left, version)
+		leftRight.setLeft(node.left, version)
+		// inline t.updateHeightSize(left)
+		left.height = maxInt8(leftLeft.height, leftRightLeft.height) + 1
+		left.size = leftLeft.size + leftRightLeft.size
+		// inline t.updateHeightSize(leftRight)
+		leftRight.height = maxInt8(left.height, leftRightRight.height) + 1
+		leftRight.size = left.size + leftRightRight.size
+
+		left = leftRight
+		leftRight = leftRightRight
+		leftLeft = leftRightLeft
+		// inline t.rotateRight(i, version)
+		result := node.left
+		node.left = left.right
+		left.right = i
+
+		// inline t.updateHeightSize(node)
+		node.height = maxInt8(leftRight.height, right.height) + 1
+		node.size = leftRight.size + right.size
+		// inline t.updateHeightSize(left)
+		left.height = maxInt8(leftLeft.height, node.height) + 1
+		left.size = leftLeft.size + node.size
+		return result
 	case balance < -1:
 		rightBalance := t.calcBalance(right)
 		if rightBalance <= 0 {
@@ -248,7 +295,6 @@ func (t *Tree2) setRecursive(i int64, key, value []byte, version int64) (int64, 
 	}
 
 	if !updated {
-		t.updateHeightSize(node)
 		i = t.reBalance(i, version)
 	}
 
