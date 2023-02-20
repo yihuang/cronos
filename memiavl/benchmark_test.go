@@ -111,48 +111,53 @@ func BenchmarkRandomGet(b *testing.B) {
 	})
 }
 
-func BenchmarkRandomSet(b *testing.B) {
+func BenchmarkRandomSetMemIAVL(b *testing.B) {
 	items := genRandItems(1000000)
-
 	b.ResetTimer()
-	b.Run("memiavl", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			tree := New()
-			for _, item := range items {
-				tree.Set(item.key, item.value)
-			}
+	for i := 0; i < b.N; i++ {
+		tree := New()
+		for _, item := range items {
+			tree.Set(item.key, item.value)
 		}
-	})
-	b.Run("tree2", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			tree := NewTree2()
-			for _, item := range items {
-				tree.Set(item.key, item.value)
-			}
+	}
+}
+func BenchmarkRandomSetTree2(b *testing.B) {
+	items := genRandItems(1000000)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tree := NewTree2()
+		for _, item := range items {
+			tree.Set(item.key, item.value)
 		}
-	})
-	b.Run("btree-degree-2", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			bt := btree.NewBTreeGOptions(lessG, btree.Options{
-				NoLocks: true,
-				Degree:  2,
-			})
-			for _, item := range items {
-				bt.Set(item)
-			}
+	}
+}
+
+func BenchmarkRandomSetBTree2(b *testing.B) {
+	items := genRandItems(1000000)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bt := btree.NewBTreeGOptions(lessG, btree.Options{
+			NoLocks: true,
+			Degree:  2,
+		})
+		for _, item := range items {
+			bt.Set(item)
 		}
-	})
-	b.Run("btree-degree-32", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			bt := btree.NewBTreeGOptions(lessG, btree.Options{
-				NoLocks: true,
-				Degree:  32,
-			})
-			for _, item := range items {
-				bt.Set(item)
-			}
+	}
+}
+
+func BenchmarkRandomSetBTree32(b *testing.B) {
+	b.ResetTimer()
+	items := genRandItems(1000000)
+	for i := 0; i < b.N; i++ {
+		bt := btree.NewBTreeGOptions(lessG, btree.Options{
+			NoLocks: true,
+			Degree:  32,
+		})
+		for _, item := range items {
+			bt.Set(item)
 		}
-	})
+	}
 }
 
 type itemT struct {
