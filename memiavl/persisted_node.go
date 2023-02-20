@@ -93,18 +93,21 @@ func (node PersistedNode) Get(key []byte) []byte {
 }
 
 func getPersistedNode(snapshot *Snapshot, offset uint64, key []byte) []byte {
-	buf := snapshot.nodes[offset : offset+SizeNode]
-	height := GetHeight(buf)
-	nodeKey := snapshot.Key(GetKeyOffset(buf))
-	if height == 0 {
-		if bytes.Equal(key, nodeKey) {
-			return snapshot.Value(GetValueOffset(buf))
+	for {
+		buf := snapshot.nodes[offset : offset+SizeNode]
+		height := GetHeight(buf)
+		nodeKey := snapshot.Key(GetKeyOffset(buf))
+		if height == 0 {
+			if bytes.Equal(key, nodeKey) {
+				return snapshot.Value(GetValueOffset(buf))
+			}
+			return nil
 		}
-		return nil
-	}
 
-	if bytes.Compare(key, nodeKey) == -1 {
-		return getPersistedNode(snapshot, uint64(GetLeftIndex(buf))*SizeNode, key)
+		if bytes.Compare(key, nodeKey) == -1 {
+			offset = uint64(GetLeftIndex(buf)) * SizeNode
+		} else {
+			offset = uint64(GetRightIndex(buf)) * SizeNode
+		}
 	}
-	return getPersistedNode(snapshot, uint64(GetRightIndex(buf))*SizeNode, key)
 }

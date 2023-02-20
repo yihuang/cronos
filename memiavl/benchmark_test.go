@@ -46,12 +46,17 @@ func BenchmarkRandomGet(b *testing.B) {
 		tree.Set(item.key, item.value)
 	}
 
-	bt1 := btree.NewBTreeGOptions(lessG, btree.Options{
+	tree2 := NewTree2()
+	for _, item := range items {
+		tree2.Set(item.key, item.value)
+	}
+
+	bt2 := btree.NewBTreeGOptions(lessG, btree.Options{
 		NoLocks: true,
-		Degree:  1,
+		Degree:  2,
 	})
 	for _, item := range items {
-		bt1.Set(item)
+		bt2.Set(item)
 	}
 
 	bt32 := btree.NewBTreeGOptions(lessG, btree.Options{
@@ -72,7 +77,8 @@ func BenchmarkRandomGet(b *testing.B) {
 
 	require.Equal(b, targetValue, tree.Get(targetKey))
 	require.Equal(b, targetValue, diskTree.Get(targetKey))
-	v, _ := bt1.Get(targetItem)
+	require.Equal(b, targetValue, tree2.Get(targetKey))
+	v, _ := bt2.Get(targetItem)
 	require.Equal(b, targetValue, v.value)
 	v, _ = bt32.Get(targetItem)
 	require.Equal(b, targetValue, v.value)
@@ -88,9 +94,14 @@ func BenchmarkRandomGet(b *testing.B) {
 			_ = diskTree.Get(targetKey)
 		}
 	})
-	b.Run("btree-degree-1", func(b *testing.B) {
+	b.Run("tree2", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			_, _ = bt1.Get(targetItem)
+			_ = tree2.Get(targetKey)
+		}
+	})
+	b.Run("btree-degree-2", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, _ = bt2.Get(targetItem)
 		}
 	})
 	b.Run("btree-degree-32", func(b *testing.B) {
@@ -112,11 +123,19 @@ func BenchmarkRandomSet(b *testing.B) {
 			}
 		}
 	})
-	b.Run("btree-degree-1", func(b *testing.B) {
+	b.Run("tree2", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			tree := NewTree2()
+			for _, item := range items {
+				tree.Set(item.key, item.value)
+			}
+		}
+	})
+	b.Run("btree-degree-2", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			bt := btree.NewBTreeGOptions(lessG, btree.Options{
 				NoLocks: true,
-				Degree:  1,
+				Degree:  2,
 			})
 			for _, item := range items {
 				bt.Set(item)
