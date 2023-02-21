@@ -4,7 +4,7 @@ import (
 	"bytes"
 )
 
-const ArenaChunkSize = 1024 * 1024
+const DefaultPreallocate = 1024 * 1024
 
 type Node2 struct {
 	height  int8
@@ -55,10 +55,8 @@ func (node *Node2) setRight(i int64, version int64) {
 	node.right = i
 }
 
-type ArenaChunk [ArenaChunkSize]Node2
-
 type Tree2 struct {
-	arena []*ArenaChunk
+	arena []Node2
 	size  int64
 
 	// head of freelist, -1 means no free slot
@@ -70,129 +68,105 @@ type Tree2 struct {
 }
 
 func NewTree2() *Tree2 {
-	return &Tree2{root: -1, head: -1, arena: []*ArenaChunk{new(ArenaChunk)}}
+	return NewTree2WithCapacity(DefaultPreallocate)
+}
+
+func NewTree2WithCapacity(capacity int64) *Tree2 {
+	return &Tree2{root: -1, head: -1, arena: make([]Node2, 0, capacity)}
 }
 
 func (t *Tree2) node(i int64) *Node2 {
-	a, b := i/ArenaChunkSize, i%ArenaChunkSize
-	return &t.arena[a][b]
+	return &t.arena[i]
 }
 
-func (t *Tree2) updateHeightSize(node *Node2) {
+func (t *Tree2) reBalance(index int64, node *Node2, version int64) int64 {
 	left := t.node(node.left)
 	right := t.node(node.right)
-	node.height = maxInt8(left.height, right.height) + 1
-	node.size = left.size + right.size
-}
 
-func (t *Tree2) calcBalance(node *Node2) int {
-	left := t.node(node.left)
-	right := t.node(node.right)
-	return int(left.height - right.height)
-}
-
-func (t *Tree2) reBalance(i int64, version int64) int64 {
-	node := t.node(i)
-
-	// inline t.updateHeightSize(node)
-	left := t.node(node.left)
-	right := t.node(node.right)
-	node.mutate(version)
-	node.height = maxInt8(left.height, right.height) + 1
-	node.size = left.size + right.size
-
-	// inline t.calcBalance(node)
 	balance := int(left.height - right.height)
-
 	switch {
 	case balance > 1:
-		// inline t.calcBalance(left)
-		leftLeft := t.node(left.left)
-		leftRight := t.node(left.right)
-		leftBalance := int(leftLeft.height - leftRight.height)
-		if leftBalance >= 0 {
+		left.mutate(version)
+		leftL := t.node(left.left)
+		leftR := t.node(left.right)
+		if leftL.height >= leftR.height {
 			// left left
-			// inline t.rotateRight(i, version)
-			result := node.left
-			node.left = left.right
-			left.setRight(i, version)
+			root := node.left
 
-			// inline t.updateHeightSize(node)
-			node.height = maxInt8(leftRight.height, right.height) + 1
-			node.size = leftRight.size + right.size
-			// inline t.updateHeightSize(left)
-			left.height = maxInt8(leftLeft.height, node.height) + 1
-			left.size = leftLeft.size + node.size
-			return result
+			// update references
+			node.left = left.right
+			left.right = index
+
+			// update height/size
+			node.height = maxInt8(leftR.height, right.height) + 1
+			node.size = leftR.size + right.size
+			left.height = maxInt8(leftL.height, node.height) + 1
+			left.size = leftL.size + node.size
+			return root
 		}
 		// left right
-		leftRightLeft := t.node(leftRight.left)
-		leftRightRight := t.node(leftRight.right)
-		node.left = left.right
-		// inline t.rotateLeft(node.left, version)
-		left.setRight(leftRight.left, version)
-		leftRight.setLeft(node.left, version)
-		// inline t.updateHeightSize(left)
-		left.height = maxInt8(leftLeft.height, leftRightLeft.height) + 1
-		left.size = leftLeft.size + leftRightLeft.size
-		// inline t.updateHeightSize(leftRight)
-		leftRight.height = maxInt8(left.height, leftRightRight.height) + 1
-		leftRight.size = left.size + leftRightRight.size
+		leftRL := t.node(leftR.left)
+		leftRR := t.node(leftR.right)
+		root := left.right
 
-		left = leftRight
-		leftRight = leftRightRight
-		leftLeft = leftRightLeft
-		// inline t.rotateRight(i, version)
-		result := node.left
-		node.left = left.right
-		left.right = i
+		leftR.mutate(version)
+		// update references
+		left.right = leftR.left
+		leftR.left = node.left
+		node.left = leftR.right
+		leftR.right = index
 
-		// inline t.updateHeightSize(node)
-		node.height = maxInt8(leftRight.height, right.height) + 1
-		node.size = leftRight.size + right.size
-		// inline t.updateHeightSize(left)
-		left.height = maxInt8(leftLeft.height, node.height) + 1
-		left.size = leftLeft.size + node.size
-		return result
+		// update height/size
+		node.height = maxInt8(leftRR.height, right.height) + 1
+		node.size = leftRR.size + right.size
+		left.height = maxInt8(leftL.height, leftRL.height) + 1
+		left.size = leftL.size + leftRL.size
+		leftR.height = maxInt8(left.height, node.height) + 1
+		leftR.size = left.size + node.size
+		return root
 	case balance < -1:
-		rightBalance := t.calcBalance(right)
-		if rightBalance <= 0 {
+		right.mutate(version)
+		rightL := t.node(right.left)
+		rightR := t.node(right.right)
+		if rightL.height <= rightR.height {
 			// right right
-			return t.rotateLeft(i, version)
+			root := node.right
+
+			// update references
+			node.right = right.left
+			right.left = index
+
+			// update height/size
+			node.height = maxInt8(left.height, rightL.height) + 1
+			node.size = left.size + rightL.size
+			right.height = maxInt8(node.height, rightR.height) + 1
+			right.size = node.size + rightR.size
+			return root
 		}
 		// right left
-		node.right = t.rotateRight(node.right, version)
-		return t.rotateLeft(i, version)
+		rightLL := t.node(rightL.left)
+		rightLR := t.node(rightL.right)
+		root := right.left
+
+		rightL.mutate(version)
+		// update references
+		right.left = rightL.right
+		rightL.right = node.right
+		node.right = rightL.left
+		rightL.left = index
+
+		// update height/size
+		node.height = maxInt8(left.height, rightLL.height) + 1
+		node.size = left.size + rightLL.size
+		right.height = maxInt8(rightLR.height, rightR.height) + 1
+		right.size = rightLR.size + rightR.size
+		rightL.height = maxInt8(node.height, right.height) + 1
+		rightL.size = node.size + right.size
+		return root
 	default:
 		// nothing changed
-		return i
+		return index
 	}
-}
-
-func (t *Tree2) rotateRight(i int64, version int64) int64 {
-	node := t.node(i)
-	lefti := node.left
-	left := t.node(lefti)
-
-	node.setLeft(left.right, version)
-	left.setRight(i, version)
-
-	t.updateHeightSize(node)
-	t.updateHeightSize(left)
-	return lefti
-}
-
-func (t *Tree2) rotateLeft(i int64, version int64) int64 {
-	node := t.node(i)
-	righti := node.right
-	right := t.node(righti)
-
-	node.setRight(right.left, version)
-	right.setLeft(i, version)
-
-	t.updateHeightSize(node)
-	t.updateHeightSize(right)
-	return righti
 }
 
 func (t *Tree2) AddNode(node Node2) int64 {
@@ -203,13 +177,8 @@ func (t *Tree2) AddNode(node Node2) int64 {
 		*p = node
 		return i
 	}
-	a, b := t.size/ArenaChunkSize, t.size%ArenaChunkSize
-	for a >= int64(len(t.arena)) {
-		t.arena = append(t.arena, new(ArenaChunk))
-	}
-	t.arena[a][b] = node
-	t.size++
-	return t.size - 1
+	t.arena = append(t.arena, node)
+	return int64(len(t.arena)) - 1
 }
 
 func (t *Tree2) FreeNode(i int64) {
@@ -253,28 +222,24 @@ func (t *Tree2) Set(key, value []byte) {
 
 func (t *Tree2) setRecursive(i int64, key, value []byte, version int64) (int64, bool) {
 	node := t.node(i)
-	if node.IsLeaf() {
+	if node.height == 0 {
 		switch bytes.Compare(key, node.key) {
 		case -1:
 			i1 := t.AddNode(newLeaf(key, value, version))
 			i2 := t.AddNode(Node2{
-				height:  1,
-				size:    2,
-				version: version,
-				key:     node.key,
-				left:    i1,
-				right:   i,
+				height: 1, size: 2, version: version,
+				key:   node.key,
+				left:  i1,
+				right: i,
 			})
 			return i2, false
 		case 1:
 			i1 := t.AddNode(newLeaf(key, value, version))
 			i2 := t.AddNode(Node2{
-				height:  1,
-				size:    2,
-				version: version,
-				key:     key,
-				left:    i,
-				right:   i1,
+				height: 1, size: 2, version: version,
+				key:   key,
+				left:  i,
+				right: i1,
 			})
 			return i2, false
 		default:
@@ -295,7 +260,7 @@ func (t *Tree2) setRecursive(i int64, key, value []byte, version int64) (int64, 
 	}
 
 	if !updated {
-		i = t.reBalance(i, version)
+		i = t.reBalance(i, node, version)
 	}
 
 	return i, updated

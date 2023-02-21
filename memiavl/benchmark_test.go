@@ -123,9 +123,16 @@ func BenchmarkRandomSetMemIAVL(b *testing.B) {
 }
 func BenchmarkRandomSetTree2(b *testing.B) {
 	items := genRandItems(1000000)
+
+	// f, err := os.Create("default.pgo")
+	// require.NoError(b, err)
+	// defer f.Close()
+	// require.NoError(b, pprof.StartCPUProfile(f))
+	// defer pprof.StopCPUProfile()
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		tree := NewTree2()
+		tree := NewTree2WithCapacity(int64(len(items)) * 2)
 		for _, item := range items {
 			tree.Set(item.key, item.value)
 		}
@@ -147,8 +154,8 @@ func BenchmarkRandomSetBTree2(b *testing.B) {
 }
 
 func BenchmarkRandomSetBTree32(b *testing.B) {
-	b.ResetTimer()
 	items := genRandItems(1000000)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bt := btree.NewBTreeGOptions(lessG, btree.Options{
 			NoLocks: true,
@@ -179,6 +186,7 @@ func int64ToItemT(n uint64) itemT {
 }
 
 func genRandItems(n int) []itemT {
+	rand.Seed(0)
 	items := make([]itemT, n)
 	itemsM := make(map[uint64]bool)
 	for i := 0; i < n; i++ {
