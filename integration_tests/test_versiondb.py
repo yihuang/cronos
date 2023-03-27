@@ -92,3 +92,28 @@ def test_versiondb_migration(cronos: Cronos):
             "value": 1000,
         },
     )
+
+
+def test_import(cronos: Cronos):
+    w3 = cronos.w3
+    community = ADDRS["community"]
+    tx = {
+        "from": ADDRS["validator"],
+        "to": community,
+        "value": 1000,
+    }
+    send_transaction(w3, tx)
+
+    # stop the network first
+    print("stop all nodes")
+    print(cronos.supervisorctl("stop", "all"))
+    cli0 = cronos.cosmos_cli(i=0)
+
+    changeset_dir = tempfile.mkdtemp(dir=cronos.base_dir)
+    print("dump to:", changeset_dir)
+    print(cli0.changeset_dump(changeset_dir))
+    snapshot_dir = tempfile.mkdtemp(dir=cronos.base_dir)
+    print("verify and save to snapshot:", snapshot_dir)
+    _, commit_info = cli0.changeset_verify(changeset_dir, save_snapshot=snapshot_dir)
+    print("commit_info", commit_info)
+    cli0.import_snapshot(snapshot_dir)

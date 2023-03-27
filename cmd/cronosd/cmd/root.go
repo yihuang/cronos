@@ -138,6 +138,11 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		rootCmd.AddCommand(changeSetCmd)
 	}
 
+	importCmd := ImportCmd()
+	if importCmd != nil {
+		rootCmd.AddCommand(importCmd)
+	}
+
 	// add keybase, auxiliary RPC, query, and tx child commands
 	rootCmd.AddCommand(
 		rpc.StatusCommand(),
