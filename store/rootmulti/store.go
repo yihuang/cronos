@@ -37,6 +37,7 @@ type Store struct {
 	keysByName   map[string]types.StoreKey
 	stores       map[types.StoreKey]types.CommitKVStore
 	listeners    map[types.StoreKey][]types.WriteListener
+	removalMap   map[types.StoreKey]bool
 
 	initialVersion int64
 	lastCommitInfo *types.CommitInfo
@@ -72,8 +73,18 @@ func (rs *Store) Commit() types.CommitID {
 	}
 
 	rs.lastCommitInfo = commitStores(version, rs.stores, nil)
+	defer rs.flushCommitInfo(rs.lastCommitInfo)
 
-	rs.flushCommitInfo(rs.lastCommitInfo)
+	// remove remnants of removed stores
+	for sk := range rs.removalMap {
+		if _, ok := rs.stores[sk]; ok {
+			delete(rs.stores, sk)
+			delete(rs.storesParams, sk)
+			delete(rs.keysByName, sk.Name())
+		}
+	}
+	// reset the removalMap
+	rs.removalMap = make(map[types.StoreKey]bool)
 
 	return types.CommitID{
 		Version: version,
@@ -129,7 +140,8 @@ func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 // Implements interface MultiStore
 // used to createQueryContext, abci_query or grpc query service.
 func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStore, error) {
-	panic("rootmulti Store don't support historical query service")
+	// TO DO, we still need this to query current state
+	return nil, nil
 }
 
 // Implements interface MultiStore
