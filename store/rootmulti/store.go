@@ -73,7 +73,7 @@ func (rs *Store) Commit() types.CommitID {
 
 	rs.lastCommitInfo = commitStores(version, rs.stores, nil)
 
-	// TODO persist to disk
+	rs.flushCommitInfo(rs.lastCommitInfo)
 
 	return types.CommitID{
 		Version: version,
@@ -229,18 +229,7 @@ func (rs *Store) LoadLatestVersion() error {
 // Implements interface CommitMultiStore
 // used by node startup with UpgradeStoreLoader
 func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) error {
-	cInfo := &types.CommitInfo{}
-	bz, err := os.ReadFile(filepath.Join(rs.dir, CommitInfoFileName))
-	if err != nil {
-		// if file not exists, assume empty db
-		if !os.IsNotExist(err) {
-			return errors.Wrap(err, "fail to read commit info file")
-		}
-	} else {
-		if err := cInfo.Unmarshal(bz); err != nil {
-			return errors.Wrap(err, "failed unmarshal commit info")
-		}
-	}
+	cInfo := rs.getCommitInfo()
 
 	infos := make(map[string]types.StoreInfo)
 	// convert StoreInfos slice to map
@@ -252,31 +241,45 @@ func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) erro
 	newStores := make(map[types.StoreKey]types.CommitKVStore)
 
 	storesKeys := make([]types.StoreKey, 0, len(rs.storesParams))
+
+	rootStoreVersion := cInfo.Version
+
 	for key := range rs.storesParams {
 		storesKeys = append(storesKeys, key)
 	}
-	// deterministic iteration order for upgrades
-	sort.Slice(storesKeys, func(i, j int) bool {
-		return storesKeys[i].Name() < storesKeys[j].Name()
-	})
 
-	var (
-		commitID types.CommitID
-	)
+	if upgrades != nil {
+		// deterministic iteration order for upgrades
+		// (as the underlying store may change and
+		// upgrades make store changes where the execution order may matter)
+		sort.Slice(storesKeys, func(i, j int) bool {
+			return storesKeys[i].Name() < storesKeys[j].Name()
+		})
+	}
+
 	for _, key := range storesKeys {
+		var (
+			commitID     types.CommitID
+			storeVersion int64
+		)
 		storeParams := rs.storesParams[key]
 
 		if info, ok := infos[key.Name()]; !ok {
 			commitID = info.CommitId
+			storeVersion = commitID.Version
 		} else {
 			commitID = types.CommitID{}
 		}
 
-		// If it has been added, set the initial version
-		if upgrades.IsAdded(key.Name()) || upgrades.RenamedFrom(key.Name()) != "" {
-			storeParams.initialVersion = uint64(cInfo.Version) + 1
-		} else if commitID.Version != cInfo.Version && storeParams.typ == types.StoreTypeIAVL {
-			return fmt.Errorf("version of store %s mismatch root store's version; expected %d got %d", key.Name(), cInfo.Version, commitID.Version)
+		// check if this type of store maintains versions or not
+		if isVersionedStore(storeParams.typ) {
+			// if the store is to be created at this height, set initial version
+			if isNewlyCreatedStore(upgrades, key) {
+				storeParams.initialVersion = uint64(cInfo.Version) + 1
+				// if the store existed at the latest height, check if store version equal to root store version
+			} else if storeVersion != rootStoreVersion {
+				return fmt.Errorf("version of store %s mismatch root store's version; expected %d got %d", key.Name(), cInfo.Version, commitID.Version)
+			}
 		}
 
 		store, err := rs.loadCommitStoreFromParams(key, commitID, storeParams)
@@ -298,6 +301,19 @@ func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) erro
 	return nil
 }
 
+// isNewlyCreatedStore check if the store is to be created at this height
+func isNewlyCreatedStore(upgrades *types.StoreUpgrades, key types.StoreKey) bool {
+	return upgrades.IsAdded(key.Name()) || upgrades.RenamedFrom(key.Name()) != ""
+}
+
+// isVersionedStore check if this type of store has version or not
+func isVersionedStore(storeType types.StoreType) bool {
+	if storeType == types.StoreTypeIAVL {
+		return true
+	}
+	return false
+}
+
 func (rs *Store) loadCommitStoreFromParams(key types.StoreKey, id types.CommitID, params storeParams) (types.CommitKVStore, error) {
 	switch params.typ {
 	case types.StoreTypeMulti:
@@ -306,7 +322,7 @@ func (rs *Store) loadCommitStoreFromParams(key types.StoreKey, id types.CommitID
 		dir := filepath.Join(rs.dir, key.Name())
 		return memiavlstore.LoadStoreWithInitialVersion(dir, rs.logger, int64(params.initialVersion))
 	case types.StoreTypeDB:
-		panic("recursive MultiStores not yet supported")
+		panic("db store not yet supported")
 	case types.StoreTypeTransient:
 		_, ok := key.(*types.TransientStoreKey)
 		if !ok {
@@ -330,7 +346,10 @@ func (rs *Store) loadCommitStoreFromParams(key types.StoreKey, id types.CommitID
 // Implements interface CommitMultiStore
 // not used in sdk
 func (rs *Store) LoadVersionAndUpgrade(ver int64, upgrades *types.StoreUpgrades) error {
-	panic("rootmulti store don't support LoadVersionAndUpgrade")
+	if ver != 0 {
+		return errors.New("rootmulti store only support loading the latest version")
+	}
+	return rs.LoadLatestVersionAndUpgrade(upgrades)
 }
 
 // Implements interface CommitMultiStore
@@ -450,4 +469,29 @@ func commitStores(version int64, storeMap map[types.StoreKey]types.CommitKVStore
 		Version:    version,
 		StoreInfos: storeInfos,
 	}
+}
+
+func (rs *Store) flushCommitInfo(cInfo *types.CommitInfo) {
+	file, err := os.OpenFile(filepath.Join(rs.dir, CommitInfoFileName), os.O_WRONLY, 0)
+	if err != nil {
+		panic(err)
+	}
+	cInfoBz, err := cInfo.Marshal()
+	_, err = file.Write(cInfoBz)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (rs *Store) getCommitInfo() *types.CommitInfo {
+	cInfo := &types.CommitInfo{}
+	cInfoBz, err := os.ReadFile(filepath.Join(rs.dir, CommitInfoFileName))
+	if err != nil {
+		panic(err)
+	} else {
+		if err := cInfo.Unmarshal(cInfoBz); err != nil {
+			panic(err)
+		}
+	}
+	return cInfo
 }
