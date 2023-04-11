@@ -1502,6 +1502,14 @@ class CosmosCLI:
         hash, commit_info = output.split("\n")
         return binascii.unhexlify(hash), json.loads(commit_info)
 
+    def import_snapshot(self, dir, version=None):
+        return self.raw(
+            "import",
+            dir,
+            "--snapshot-version",
+            "0" if version is None else version,
+        )
+
     def changeset_restore_app_db(self, snapshot_dir, app_db, **kwargs):
         return self.raw(
             "changeset", "restore-app-db", snapshot_dir, app_db, **kwargs
