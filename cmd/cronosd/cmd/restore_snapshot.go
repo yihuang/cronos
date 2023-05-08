@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -23,16 +22,9 @@ func RestoreSnapshotCmd(appCreator servertypes.AppCreator, defaultNodeHome strin
 	cmd := &cobra.Command{
 		Use:   "restore-snapshot path-to-snapshot",
 		Short: "Restore app state from snapshot saved by the option `store.save-snapshot-dir`",
-		Long: `
-		Restore app state from snapshot saved by the option "store.save-snapshot-dir"
-		`,
+		Long:  "Restore app state from snapshot saved by the option `store.save-snapshot-dir`",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			vp := viper.New()
-
-			// Bind flags to the Context's Viper so we can get pruning options.
-			if err := vp.BindPFlags(cmd.Flags()); err != nil {
-				return err
-			}
+			ctx := server.GetServerContextFromCmd(cmd)
 
 			dir := args[0]
 			bz, err := os.ReadFile(filepath.Join(dir, "snapshot"))
@@ -45,13 +37,13 @@ func RestoreSnapshotCmd(appCreator servertypes.AppCreator, defaultNodeHome strin
 				return fmt.Errorf("unmarshal snapshot failed: %v", err)
 			}
 
-			home := vp.GetString(flags.FlagHome)
-			db, err := opendb.OpenDB(home, server.GetAppDBBackend(vp))
+			home := ctx.Config.RootDir
+			db, err := opendb.OpenDB(home, server.GetAppDBBackend(ctx.Viper))
 			if err != nil {
 				return fmt.Errorf("open db failed: %v", err)
 			}
 			logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-			app := appCreator(logger, db, nil, vp)
+			app := appCreator(logger, db, nil, ctx.Viper)
 
 			rsp := app.OfferSnapshot(request)
 			if rsp.Result != abci.ResponseOfferSnapshot_ACCEPT {
@@ -80,8 +72,8 @@ func RestoreSnapshotCmd(appCreator servertypes.AppCreator, defaultNodeHome strin
 				return fmt.Errorf("commit height %d not match snapshot height %d", lastCommitID.Version, snapshot.Height)
 			}
 
-			if !bytes.Equal(lastCommitID.Hash, snapshot.Hash) {
-				return fmt.Errorf("commit hash %s not match snapshot hash %s, height: %d", hex.EncodeToString(lastCommitID.Hash), hex.EncodeToString(snapshot.Hash), snapshot.Height)
+			if !bytes.Equal(lastCommitID.Hash, request.AppHash) {
+				return fmt.Errorf("commit app hash %s not match snapshot request %s, height: %d", hex.EncodeToString(lastCommitID.Hash), hex.EncodeToString(snapshot.Hash), snapshot.Height)
 			}
 
 			fmt.Printf("restore snapshot %d successfully\n", snapshot.Height)
