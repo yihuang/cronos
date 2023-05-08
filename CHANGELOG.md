@@ -5,6 +5,7 @@
 - [#986](https://github.com/crypto-org-chain/cronos/pull/986) Use go 1.20.
 - [#984](https://github.com/crypto-org-chain/cronos/pull/984) experimental integration of memiavl.
 - [#985](https://github.com/crypto-org-chain/cronos/pull/985) Fix versiondb verify command on older versions
+- [#1022](https://github.com/crypto-org-chain/cronos/pull/1022) Add option `store.save-snapshot-dir` to save snapshot locally.
 
 *April 13, 2023*
 

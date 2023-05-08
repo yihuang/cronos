@@ -154,6 +154,10 @@ const (
 
 	FlagMemIAVL  = "store.memiavl"
 	FlagAsyncWAL = "store.async-wal"
+
+	// FlagSaveSnapshotDir saves the state snapshot during state-sync restoration,
+	// it's useful is restoration is slow and user can save the snapshot and try local restoration later.
+	FlagSaveSnapshotDir = "state-sync.save-snapshot-dir"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -340,6 +344,9 @@ type App struct {
 
 	// if enable experimental gravity-bridge feature module
 	experimental bool
+
+	// saveSnapshotDir is the directory where the restored snapshot will be saved during the state-sync bootstrap.
+	saveSnapshotDir string
 }
 
 // New returns a reference to an initialized chain.
@@ -400,6 +407,7 @@ func New(
 		tkeys:             tkeys,
 		memKeys:           memKeys,
 		experimental:      experimental,
+		saveSnapshotDir:   cast.ToString(appOpts.Get(FlagSaveSnapshotDir)),
 	}
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey], experimental)
