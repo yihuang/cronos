@@ -12,6 +12,7 @@ import (
 	"cosmossdk.io/errors"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/cosmos/iavl"
 	"github.com/tidwall/wal"
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
@@ -241,10 +242,16 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 func (t *MultiTree) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInfo bool) ([]byte, int64, error) {
 	version := nextVersion(t.lastCommitInfo.Version, t.initialVersion)
 
+	csMap := make(map[string]iavl.ChangeSet, len(changeSets))
 	for _, cs := range changeSets {
-		tree := t.trees[t.treesByName[cs.Name]].tree
+		csMap[cs.Name] = cs.Changeset
+	}
 
-		_, v, err := tree.ApplyChangeSet(cs.Changeset, updateCommitInfo)
+	for _, entry := range t.trees {
+		// get or default
+		cs, _ := csMap[entry.name]
+
+		_, v, err := entry.tree.ApplyChangeSet(cs, updateCommitInfo)
 		if err != nil {
 			return nil, 0, err
 		}

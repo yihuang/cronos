@@ -74,10 +74,13 @@ func (rs *Store) Commit() types.CommitID {
 		// it'll unwrap the inter-block cache
 		store := rs.GetCommitKVStore(key)
 		if memiavlStore, ok := store.(*memiavlstore.Store); ok {
-			changeSets = append(changeSets, &memiavl.NamedChangeSet{
-				Name:      key.Name(),
-				Changeset: memiavlStore.PopChangeSet(),
-			})
+			cs := memiavlStore.PopChangeSet()
+			if len(cs.Pairs) > 0 {
+				changeSets = append(changeSets, &memiavl.NamedChangeSet{
+					Name:      key.Name(),
+					Changeset: cs,
+				})
+			}
 		} else {
 			_ = store.Commit()
 		}
