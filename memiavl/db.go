@@ -46,7 +46,7 @@ type DB struct {
 	readOnly bool
 
 	// result channel of snapshot rewrite goroutine
-	snapshotRewriteChan chan snapshotResult
+	snapshotRewriteChan chan error
 	// the number of old snapshots to keep (excluding the latest one)
 	snapshotKeepRecent uint32
 	// block interval to take a new snapshot
@@ -65,6 +65,9 @@ type DB struct {
 
 	// pending store upgrades, will be written into WAL in next Commit call
 	pendingUpgrades []*TreeNameUpgrade
+
+	// a pending MultiTree ready for switch in next Commit event
+	treeForSwitch *MultiTree
 
 	// The assumptions to concurrency:
 	// - The methods on DB are protected by a mutex
@@ -289,7 +292,7 @@ func (db *DB) SetInitialVersion(initialVersion int64) error {
 		return err
 	}
 
-	return db.reload()
+	return db.reloadSnapshot()
 }
 
 // ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a temporary field,
@@ -310,20 +313,18 @@ func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	return nil
 }
 
-// checkAsyncTasks checks the status of background tasks non-blocking-ly and process the result
-func (db *DB) checkAsyncTasks() error {
-	return errors.Join(
-		db.checkAsyncCommit(),
-		db.checkBackgroundSnapshotRewrite(),
-	)
-}
-
-// checkAsyncCommit check the quit signal of async wal writing
-func (db *DB) checkAsyncCommit() error {
+// checkAsyncTaskStatus checks the result of background tasks non-blocking-ly, propogate the error if any.
+func (db *DB) checkAsyncTaskStatus() error {
 	select {
 	case err := <-db.walQuit:
 		// async wal writing failed, we need to abort the state machine
 		return fmt.Errorf("async wal writing goroutine quit unexpectedly: %w", err)
+	case err := <-db.snapshotRewriteChan:
+		db.snapshotRewriteChan = nil
+		if err != nil {
+			// background snapshot rewrite failed
+			return fmt.Errorf("background snapshot rewriting failed: %w", err)
+		}
 	default:
 	}
 
@@ -340,54 +341,6 @@ func (db *DB) CommittedVersion() (int64, error) {
 		return db.SnapshotVersion(), nil
 	}
 	return walVersion(lastIndex, db.initialVersion), nil
-}
-
-// checkBackgroundSnapshotRewrite check the result of background snapshot rewrite, cleans up the old snapshots and switches to a new multitree
-func (db *DB) checkBackgroundSnapshotRewrite() error {
-	// check the completeness of background snapshot rewriting
-	select {
-	case result := <-db.snapshotRewriteChan:
-		db.snapshotRewriteChan = nil
-
-		if result.mtree == nil {
-			// background snapshot rewrite failed
-			return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
-		}
-
-		// wait for potential pending wal writings to finish, to make sure we catch up to latest state.
-		// in real world, block execution should be slower than wal writing, so this should not block for long.
-		for {
-			committedVersion, err := db.CommittedVersion()
-			if err != nil {
-				return fmt.Errorf("get wal version failed: %w", err)
-			}
-			if db.lastCommitInfo.Version == committedVersion {
-				break
-			}
-			time.Sleep(time.Nanosecond)
-		}
-
-		// catchup the remaining wal
-		if err := result.mtree.CatchupWAL(db.wal, 0); err != nil {
-			return fmt.Errorf("catchup failed: %w", err)
-		}
-
-		// do the switch
-		if err := db.reloadMultiTree(result.mtree); err != nil {
-			return fmt.Errorf("switch multitree failed: %w", err)
-		}
-		db.logger.Info("switched to new snapshot", "version", db.MultiTree.Version())
-
-		db.pruneSnapshots()
-
-		// trigger state-sync snapshot export
-		if db.triggerStateSyncExport != nil {
-			db.triggerStateSyncExport(db.SnapshotVersion())
-		}
-	default:
-	}
-
-	return nil
 }
 
 // pruneSnapshot prune the old snapshots
@@ -441,6 +394,56 @@ func (db *DB) pruneSnapshots() {
 	}()
 }
 
+func (db *DB) SetTreeForSwitch(mtree *MultiTree) error {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	if db.treeForSwitch != nil {
+		if err := db.treeForSwitch.Close(); err != nil {
+			return err
+		}
+	}
+
+	// wait for potential pending wal writings to finish, to make sure we catch up to latest state.
+	// in real world, block execution should be slower than wal writing, so this should not block for long.
+	for {
+		committedVersion, err := db.CommittedVersion()
+		if err != nil {
+			return fmt.Errorf("get wal version failed: %w", err)
+		}
+		if db.lastCommitInfo.Version == committedVersion {
+			break
+		}
+		time.Sleep(time.Nanosecond)
+	}
+
+	// catchup the remaining wal
+	if err := mtree.CatchupWAL(db.wal, 0); err != nil {
+		return fmt.Errorf("catchup failed: %w", err)
+	}
+
+	db.treeForSwitch = mtree
+	return nil
+}
+
+func (db *DB) trySwitchTree() error {
+	if db.treeForSwitch != nil {
+		if err := db.reloadMultiTree(db.treeForSwitch); err != nil {
+			return err
+		}
+		db.logger.Info("switched to new snapshot", "version", db.MultiTree.Version())
+		db.treeForSwitch = nil
+
+		db.pruneSnapshots()
+
+		// trigger state-sync snapshot export
+		if db.triggerStateSyncExport != nil {
+			db.triggerStateSyncExport(db.SnapshotVersion())
+		}
+	}
+	return nil
+}
+
 // Commit wraps `MultiTree.ApplyChangeSet` to add some db level operations:
 // - manage background snapshot rewriting
 // - write WAL
@@ -452,7 +455,11 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 		return nil, 0, errReadOnly
 	}
 
-	if err := db.checkAsyncTasks(); err != nil {
+	if err := db.checkAsyncTaskStatus(); err != nil {
+		return nil, 0, err
+	}
+
+	if err := db.trySwitchTree(); err != nil {
 		return nil, 0, err
 	}
 
@@ -591,10 +598,10 @@ func (db *DB) Reload() error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return db.reload()
+	return db.reloadSnapshot()
 }
 
-func (db *DB) reload() error {
+func (db *DB) reloadSnapshot() error {
 	mtree, err := LoadMultiTree(currentPath(db.dir), db.zeroCopy, db.cacheSize)
 	if err != nil {
 		return err
@@ -603,6 +610,10 @@ func (db *DB) reload() error {
 }
 
 func (db *DB) reloadMultiTree(mtree *MultiTree) error {
+	if mtree.lastCommitInfo.Version != db.lastCommitInfo.Version {
+		return fmt.Errorf("can't reload with different version: %d != %d", mtree.lastCommitInfo.Version, db.lastCommitInfo.Version)
+	}
+
 	if err := db.MultiTree.Close(); err != nil {
 		return err
 	}
@@ -652,7 +663,7 @@ func (db *DB) rewriteSnapshotBackground() error {
 		return errors.New("there's another ongoing snapshot rewriting process")
 	}
 
-	ch := make(chan snapshotResult)
+	ch := make(chan error)
 	db.snapshotRewriteChan = ch
 
 	cloned := db.copy(0)
@@ -662,25 +673,30 @@ func (db *DB) rewriteSnapshotBackground() error {
 
 		cloned.logger.Info("start rewriting snapshot", "version", cloned.Version())
 		if err := cloned.RewriteSnapshot(); err != nil {
-			ch <- snapshotResult{err: err}
+			ch <- err
 			return
 		}
 		cloned.logger.Info("finished rewriting snapshot", "version", cloned.Version())
 		mtree, err := LoadMultiTree(currentPath(cloned.dir), cloned.zeroCopy, 0)
 		if err != nil {
-			ch <- snapshotResult{err: err}
+			ch <- err
 			return
 		}
 
-		// do a best effort catch-up, will do another final catch-up in main thread.
+		// do a best effort catch-up, don't block main thread.
 		if err := mtree.CatchupWAL(wal, 0); err != nil {
-			ch <- snapshotResult{err: err}
+			ch <- err
 			return
 		}
 
-		cloned.logger.Info("finished best-effort WAL catchup", "version", cloned.Version(), "latest", mtree.Version())
+		// set the mtree for switching in next Commit call, it'll grab the lock and block potential commit in main thread,
+		// but if the main thread is still executing block, it won't be blocked.
+		if err := db.SetTreeForSwitch(mtree); err != nil {
+			ch <- err
+			return
+		}
 
-		ch <- snapshotResult{mtree: mtree}
+		cloned.logger.Info("finished WAL catchup, prepared to be switched in next Commit", "version", cloned.Version(), "latest", mtree.Version())
 	}()
 
 	return nil

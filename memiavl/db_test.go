@@ -104,8 +104,10 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 	}
 
 	for db.snapshotRewriteChan != nil {
-		require.NoError(t, db.checkAsyncTasks())
+		require.NoError(t, db.checkAsyncTaskStatus())
+		time.Sleep(time.Millisecond * 20)
 	}
+	require.NoError(t, db.trySwitchTree())
 
 	db.pruneSnapshotLock.Lock()
 	defer db.pruneSnapshotLock.Unlock()
