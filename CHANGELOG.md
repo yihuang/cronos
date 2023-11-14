@@ -1,5 +1,7 @@
 # Changelog
 
+- [#1239](https://github.com/crypto-org-chain/cronos/pull/1239) Refactor websocket/subscription system to improve performance and stability.
+
 *October 17, 2023*
 
 ## v1.1.0-rc1
