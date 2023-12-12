@@ -25,7 +25,6 @@ require (
 	github.com/tendermint/tendermint v0.34.27
 	github.com/tendermint/tm-db v0.6.7
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
-	golang.org/x/sys v0.6.0
 	google.golang.org/genproto v0.0.0-20230323212658-478b75c54725
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
@@ -191,6 +190,7 @@ require (
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.6.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/term v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
@@ -213,7 +213,7 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.46.3-0.20230608170216-c8ad6f2b4074
 	github.com/crypto-org-chain/cronos/versiondb => ./versiondb
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.11-cronos-hotfix.0.20230718004314-5d8381103c18
+	github.com/evmos/ethermint => github.com/yihuang/ethermint v0.20.2-cronos.0.20231213054703-e7a3c3e87889
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
