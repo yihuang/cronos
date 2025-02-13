@@ -242,11 +242,12 @@ func (s Store) FixData(storeNames []string, dryRun bool) error {
 		}
 	}
 
-	return s.Flush()
+	return nil
 }
 
 // fixDataStore iterate the wrong data at version 0, parse the timestamp from the key and write it again.
 func (s Store) fixDataStore(storeName string, dryRun bool) error {
+	fmt.Println("fix store", storeName, dryRun)
 	pairs, err := s.loadWrongData(storeName)
 	if err != nil {
 		return err
@@ -275,8 +276,9 @@ func (s Store) fixDataStore(storeName string, dryRun bool) error {
 		}
 
 		if dryRun {
-			fmt.Printf("fix data: %s, key: %X, ts: %X\n", storeName, pair.Key, pair.Timestamp)
+			fmt.Printf("fix data (dryrun): %s, key: %X, ts: %X\n", storeName, pair.Key, pair.Timestamp)
 		} else {
+			fmt.Printf("fix data: %s, key: %X, ts: %X, value: %X\n", storeName, pair.Key, pair.Timestamp, pair.Value)
 			batch.PutCFWithTS(s.cfHandle, realKey, pair.Timestamp, pair.Value)
 		}
 	}

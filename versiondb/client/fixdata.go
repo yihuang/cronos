@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	FlagDryRun = "dry-run"
-	FlagStore  = "store-name"
+	FlagDryRun   = "dry-run"
+	FlagReadOnly = "readonly"
+	FlagStore    = "store-name"
 )
 
 func FixDataCmd(defaultStores []string) *cobra.Command {
@@ -19,6 +20,10 @@ func FixDataCmd(defaultStores []string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir := args[0]
 			dryRun, err := cmd.Flags().GetBool(FlagDryRun)
+			if err != nil {
+				return err
+			}
+			readOnly, err := cmd.Flags().GetBool(FlagReadOnly)
 			if err != nil {
 				return err
 			}
@@ -35,7 +40,7 @@ func FixDataCmd(defaultStores []string) *cobra.Command {
 				cfHandle *grocksdb.ColumnFamilyHandle
 			)
 
-			if dryRun {
+			if readOnly {
 				db, cfHandle, err = tsrocksdb.OpenVersionDBForReadOnly(dir, false)
 			} else {
 				db, cfHandle, err = tsrocksdb.OpenVersionDB(dir)
@@ -54,6 +59,7 @@ func FixDataCmd(defaultStores []string) *cobra.Command {
 	}
 
 	cmd.Flags().Bool(FlagDryRun, false, "Dry run, do not write to the database, open the database in read-only mode.")
+	cmd.Flags().Bool(FlagReadOnly, false, "Open db in readonly mode")
 	cmd.Flags().StringArray(FlagStore, []string{}, "Store names to fix, if not specified, all stores will be fixed.")
 	return cmd
 }
