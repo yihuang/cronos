@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/alitto/pond"
 	"github.com/tidwall/wal"
 	"golang.org/x/exp/slices"
 )
@@ -361,27 +360,19 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	return nil
 }
 
-func (t *MultiTree) WriteSnapshot(dir string, wp *pond.WorkerPool) error {
-	return t.WriteSnapshotWithContext(context.Background(), dir, wp)
+func (t *MultiTree) WriteSnapshot(dir string) error {
+	return t.WriteSnapshotWithContext(context.Background(), dir)
 }
 
-func (t *MultiTree) WriteSnapshotWithContext(ctx context.Context, dir string, wp *pond.WorkerPool) error {
+func (t *MultiTree) WriteSnapshotWithContext(ctx context.Context, dir string) error {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
 	}
 
-	// write the snapshots in parallel and wait all jobs done
-	group, _ := wp.GroupContext(context.Background())
-
 	for _, entry := range t.trees {
-		tree, name := entry.Tree, entry.Name
-		group.Submit(func() error {
-			return tree.WriteSnapshotWithContext(ctx, filepath.Join(dir, name))
-		})
-	}
-
-	if err := group.Wait(); err != nil {
-		return err
+		if err := entry.Tree.WriteSnapshotWithContext(ctx, filepath.Join(dir, entry.Name)); err != nil {
+			return err
+		}
 	}
 
 	// write commit info

@@ -7,7 +7,6 @@ toolchain go1.23.7
 require (
 	cosmossdk.io/log v1.3.1
 	cosmossdk.io/store v1.1.0
-	github.com/alitto/pond v1.8.3
 	github.com/cosmos/cosmos-db v1.0.2
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/cosmos/iavl v1.2.0
