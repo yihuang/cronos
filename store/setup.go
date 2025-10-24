@@ -15,13 +15,12 @@ import (
 )
 
 const (
-	FlagMemIAVL             = "memiavl.enable"
-	FlagAsyncCommitBuffer   = "memiavl.async-commit-buffer"
-	FlagZeroCopy            = "memiavl.zero-copy"
-	FlagSnapshotKeepRecent  = "memiavl.snapshot-keep-recent"
-	FlagSnapshotInterval    = "memiavl.snapshot-interval"
-	FlagCacheSize           = "memiavl.cache-size"
-	FlagSnapshotWriterLimit = "memiavl.snapshot-writer-limit"
+	FlagMemIAVL            = "memiavl.enable"
+	FlagAsyncCommitBuffer  = "memiavl.async-commit-buffer"
+	FlagZeroCopy           = "memiavl.zero-copy"
+	FlagSnapshotKeepRecent = "memiavl.snapshot-keep-recent"
+	FlagSnapshotInterval   = "memiavl.snapshot-interval"
+	FlagCacheSize          = "memiavl.cache-size"
 )
 
 // SetupMemIAVL insert the memiavl setter in front of baseapp options, so that
@@ -37,12 +36,11 @@ func SetupMemIAVL(
 ) []func(*baseapp.BaseApp) {
 	if cast.ToBool(appOpts.Get(FlagMemIAVL)) {
 		opts := memiavl.Options{
-			AsyncCommitBuffer:   cast.ToInt(appOpts.Get(FlagAsyncCommitBuffer)),
-			ZeroCopy:            cast.ToBool(appOpts.Get(FlagZeroCopy)),
-			SnapshotKeepRecent:  cast.ToUint32(appOpts.Get(FlagSnapshotKeepRecent)),
-			SnapshotInterval:    cast.ToUint32(appOpts.Get(FlagSnapshotInterval)),
-			CacheSize:           cacheSize,
-			SnapshotWriterLimit: cast.ToInt(appOpts.Get(FlagSnapshotWriterLimit)),
+			AsyncCommitBuffer:  cast.ToInt(appOpts.Get(FlagAsyncCommitBuffer)),
+			ZeroCopy:           cast.ToBool(appOpts.Get(FlagZeroCopy)),
+			SnapshotKeepRecent: cast.ToUint32(appOpts.Get(FlagSnapshotKeepRecent)),
+			SnapshotInterval:   cast.ToUint32(appOpts.Get(FlagSnapshotInterval)),
+			CacheSize:          cacheSize,
 		}
 
 		if opts.ZeroCopy {

@@ -16,10 +16,9 @@ import (
 )
 
 const (
-	DefaultSnapshotInterval    = 1000
-	LockFileName               = "LOCK"
-	DefaultSnapshotWriterLimit = 4
-	TmpSuffix                  = "-tmp"
+	DefaultSnapshotInterval = 1000
+	LockFileName            = "LOCK"
+	TmpSuffix               = "-tmp"
 )
 
 var errReadOnly = errors.New("db is read-only")
@@ -105,8 +104,6 @@ type Options struct {
 	// truncate the versions after the `TargetVersion`, the `TargetVersion` becomes the latest version.
 	// it do nothing if the target version is `0`.
 	LoadForOverwriting bool
-
-	SnapshotWriterLimit int
 }
 
 func (opts Options) Validate() error {
@@ -128,10 +125,6 @@ func (opts *Options) FillDefaults() {
 
 	if opts.SnapshotInterval == 0 {
 		opts.SnapshotInterval = DefaultSnapshotInterval
-	}
-
-	if opts.SnapshotWriterLimit <= 0 {
-		opts.SnapshotWriterLimit = DefaultSnapshotWriterLimit
 	}
 }
 
